@@ -16,8 +16,8 @@
 | **S3 Hosting Bucket** | `s3://lens-ui-984625844016` (Protected with CloudFront Origin Access Control) |
 | **AWS Lambda Compute** | `lens-backend-api` (Python 3.11, Bedrock Nova Pro Converse API) |
 | **IAM Execution Role** | `arn:aws:iam::984625844016:role/lens-backend-lambda-role` |
-| **Local Project Path** | `c:\Users\ELCOT\OneDrive\Desktop\Agent\lens\` |
-| **Beginner Study Guide PDF** | `c:\Users\ELCOT\OneDrive\Desktop\Agent\lens\LENS_BEGINNER_STUDY_GUIDE.pdf` |
+| **Local Project Path** | `c:\Users\ELCOT\OneDrive\Desktop\Agent\lens-content-reviewer-agent\` |
+| **Beginner Study Guide PDF** | `c:\Users\ELCOT\OneDrive\Desktop\Agent\lens-content-reviewer-agent\LENS_BEGINNER_STUDY_GUIDE.pdf` |
 
 ---
 

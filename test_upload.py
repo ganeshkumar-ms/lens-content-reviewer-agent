@@ -17,7 +17,7 @@ body.extend(f'--{boundary}\r\n'.encode())
 body.extend(b'Content-Disposition: form-data; name="file"; filename="test.pdf"\r\n')
 body.extend(b'Content-Type: application/pdf\r\n\r\n')
 
-pdf_path = Path(r'c:\Users\ELCOT\OneDrive\Desktop\Agent\lens\LENS_BEGINNER_STUDY_GUIDE.pdf')
+pdf_path = Path(r'c:\Users\ELCOT\OneDrive\Desktop\Agent\lens-content-reviewer-agent\LENS_BEGINNER_STUDY_GUIDE.pdf')
 body.extend(pdf_path.read_bytes())
 body.extend(b'\r\n')
 body.extend(f'--{boundary}\r\n'.encode())
