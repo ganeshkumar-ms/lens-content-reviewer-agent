@@ -639,7 +639,7 @@ export default function App() {
                   </form>
                 </div>
                 {selectedFile && (
-                  <div className="filePill" style={{ maxWidth: 840, marginTop: 8 }}>
+                  <div className="filePill" style={{ maxWidth: 840, margin: "8px auto 0", display: "flex", justifyContent: "center" }}>
                     <span>Attached: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span>
                     <button onClick={() => setSelectedFile(null)}>✕</button>
                   </div>
