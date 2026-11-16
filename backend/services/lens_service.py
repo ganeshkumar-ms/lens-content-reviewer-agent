@@ -1,3 +1,5 @@
+import datetime
+import uuid
 import boto3
 import json
 import os
@@ -286,11 +288,17 @@ def review_content(text: str, file_name: str = "", conversation_history: list = 
     # Step 1: Enterprise Guardrails Inspection
     guardrail_result = guardrail_service.inspect_and_sanitize(text)
     if guardrail_result.get('blocked'):
+        trace_code = f"LNS-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         return {
             "type": "chat",
             "message": guardrail_result.get("message", "The submitted content violates Enterprise BFSI Guardrails and cannot be reviewed."),
             "guardrail_status": "BLOCKED",
-            "guardrail_details": guardrail_result
+            "guardrails": guardrail_result.get("guardrails", {"status": "BLOCKED"}),
+            "trace_id": trace_code,
+            "data": {
+                "trace_id": trace_code,
+                "guardrails": guardrail_result.get("guardrails", {"status": "BLOCKED"})
+            }
         }
 
     sanitized_text = guardrail_result.get("sanitized_text", text)
@@ -357,6 +365,14 @@ def review_content(text: str, file_name: str = "", conversation_history: list = 
         if json_match:
             parsed = json.loads(json_match.group(0))
             parsed['type'] = 'review'
+            trace_code = f"LNS-{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+            parsed['trace_id'] = trace_code
+            parsed['guardrails'] = {
+                "status": "REDACTED" if guardrail_result.get("has_redactions") else "PASSED",
+                "pci_dss_sanitized": True,
+                "redacted_count": guardrail_result.get("guardrails", {}).get("redacted_count", 0),
+                "redacted_types": guardrail_result.get("guardrails", {}).get("redacted_types", []),
+            }
             return parsed
         else:
             return {"type": "chat", "message": output_text}

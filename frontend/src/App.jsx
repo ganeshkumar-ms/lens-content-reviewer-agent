@@ -293,11 +293,14 @@ export default function App() {
         content: m.role === 'user' ? m.content : (m.data?.publish_readiness ? m.data.publish_readiness.summary : (m.content || ''))
       }))
 
-      const response = await reviewContent({
-        file: fileToSend,
-        text: cleanText,
-        conversationHistory
-      })
+      const [response] = await Promise.all([
+        reviewContent({
+          file: fileToSend,
+          text: cleanText,
+          conversationHistory
+        }),
+        new Promise(res => setTimeout(res, 900))
+      ])
 
       if (response.document_metadata && userMsg.file) {
         userMsg.docMeta = response.document_metadata
@@ -585,7 +588,7 @@ export default function App() {
                   // AI Answer Card (NO duplicate open button here)
                   return (
                     <div key={msg.id} className="bubble ai">
-                      <LensResultCard data={msg.data} />
+                      <LensResultCard data={msg.data} guardrails={msg.data?.guardrails || msg.guardrails} />
                     </div>
                   )
                 })}

@@ -78,6 +78,13 @@ async def review(
                 'type': 'chat',
                 'message': pre_rej['message'],
                 'rejected': True,
+                'guardrail_status': 'BLOCKED',
+                'guardrails': {
+                    'status': 'BLOCKED',
+                    'action': 'BLOCKED_SENSITIVE_CREDENTIALS',
+                    'triggered_rule': 'Zero-Password & Secret Credential Policy (AWS / API Keys)',
+                    'rejection_reason': pre_rej.get('title', 'Authentication Credentials / Access Keys Rejected')
+                },
                 'rejection_details': pre_rej,
                 'document_metadata': {'filename': file_name, 'size_bytes': len(file_bytes)},
             }
