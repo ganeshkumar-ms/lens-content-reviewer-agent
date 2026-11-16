@@ -149,7 +149,7 @@ button, input, textarea {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 7px;
-  background: linear-gradient(90deg, #fff, #08d6a2, #47ebc2, #fff);
+  background: linear-gradient(90deg, #fff, #078cff, #47ebc2, #fff);
   background-size: 200% auto;
   -webkit-background-clip: text;
   color: transparent;
@@ -203,7 +203,7 @@ header {
 .enter:hover, .ghost:hover {
   transform: translateY(-2px);
   color: #fff;
-  border-color: #08d6a2;
+  border-color: #078cff;
   box-shadow: 0 8px 30px rgba(7, 140, 255, 0.3);
 }
 
@@ -218,7 +218,7 @@ header {
 
 .eyebrow {
   text-align: center;
-  color: #08d6a2;
+  color: #078cff;
   font-size: 11.5px;
   letter-spacing: 2.8px;
   font-weight: 700;
@@ -238,7 +238,7 @@ header {
 }
 
 .home h1 span {
-  background: linear-gradient(95deg, #08d6a2, #47ebc2, #fff);
+  background: linear-gradient(95deg, #078cff, #47ebc2, #fff);
   -webkit-background-clip: text;
   color: transparent;
 }
@@ -265,7 +265,7 @@ header {
   position: absolute;
   inset: -3px;
   border-radius: 25px;
-  background: conic-gradient(from 0deg, transparent 40%, #08d6a2, transparent 56%, #0b3d32, transparent 72%);
+  background: conic-gradient(from 0deg, transparent 40%, #078cff, transparent 56%, #0b3d32, transparent 72%);
   filter: blur(10px);
   opacity: 0.35;
   animation: spin 8s linear infinite;
@@ -304,8 +304,8 @@ header {
   height: 44px;
   border: 0;
   border-radius: 14px;
-  color: #02110d;
-  background: #08d6a2;
+  color: #020c16;
+  background: #078cff;
   cursor: pointer;
   transition: all 0.25s;
   box-shadow: 0 8px 28px rgba(7, 140, 255, 0.35);
@@ -335,7 +335,7 @@ header {
 
 .startAttach:hover, .plus:hover {
   color: #fff;
-  border-color: #08d6a2;
+  border-color: #078cff;
   transform: translateY(-2px);
 }
 
@@ -354,7 +354,7 @@ header {
   border-radius: 999px;
   background: rgba(7, 140, 255, 0.12);
   border: 1px solid rgba(7, 140, 255, 0.35);
-  color: #08d6a2;
+  color: #078cff;
   font-size: 12px;
 }
 
@@ -382,7 +382,7 @@ header {
 .recentOnly span {
   font-size: 12px;
   letter-spacing: 1.6px;
-  color: #08d6a2;
+  color: #078cff;
   font-weight: 700;
 }
 
@@ -420,7 +420,7 @@ header {
 
 .card small {
   font-size: 10px;
-  color: #08d6a2;
+  color: #078cff;
   letter-spacing: 1px;
   font-weight: 700;
   text-transform: uppercase;
@@ -507,7 +507,7 @@ header {
 .new {
   border: 1px solid rgba(7, 140, 255, 0.45);
   background: rgba(7, 140, 255, 0.1);
-  color: #08d6a2;
+  color: #078cff;
   border-radius: 12px;
   height: 38px;
   min-height: 38px;
@@ -601,7 +601,7 @@ header {
 }
 
 .histRow.on .histTitle {
-  color: #08d6a2;
+  color: #078cff;
   font-weight: 600;
 }
 
@@ -649,7 +649,7 @@ header {
 .histInput {
   width: 100%;
   background: rgba(0, 0, 0, 0.4);
-  border: 1px solid #08d6a2;
+  border: 1px solid #078cff;
   color: #fff;
   border-radius: 6px;
   padding: 6px 10px;
@@ -750,7 +750,7 @@ header {
 .chatHead small {
   display: block;
   margin-top: 3px;
-  color: #08d6a2;
+  color: #078cff;
   font-size: 10px;
   letter-spacing: 1.5px;
   font-weight: 700;
@@ -773,12 +773,12 @@ header {
 .titleEditable:hover {
   background: rgba(7, 140, 255, 0.12);
   border-color: rgba(7, 140, 255, 0.35);
-  color: #08d6a2;
+  color: #078cff;
 }
 
 .titleInput {
   background: rgba(0, 0, 0, 0.5);
-  border: 1px solid #08d6a2;
+  border: 1px solid #078cff;
   color: #fff;
   border-radius: 6px;
   padding: 4px 10px;
@@ -821,7 +821,7 @@ header {
 
 .user {
   align-self: flex-end;
-  background: linear-gradient(135deg, #0ba37c, #066b51);
+  background: linear-gradient(135deg, #0ba37c, #0a3154);
   border-radius: 18px 18px 5px 18px;
   color: #fff;
   box-shadow: 0 8px 24px rgba(6, 107, 81, 0.25);
@@ -887,7 +887,7 @@ header {
 
 .userFileMeta {
   font-size: 11px;
-  color: #d1ede4;
+  color: #f0f7ff;
   opacity: 0.85;
 }
 
@@ -905,9 +905,9 @@ header {
 }
 
 .userFileCard:hover .userFileViewBtn {
-  background: #08d6a2;
-  color: #02110d;
-  border-color: #08d6a2;
+  background: #078cff;
+  color: #020c16;
+  border-color: #078cff;
 }
 
 .ai {
@@ -936,7 +936,7 @@ header {
   font-weight: 800;
   letter-spacing: 3px;
   font-size: 13px;
-  background: linear-gradient(90deg, #fff, #08d6a2);
+  background: linear-gradient(90deg, #fff, #078cff);
   -webkit-background-clip: text;
   color: transparent;
 }
@@ -953,7 +953,7 @@ header {
   width: 3px;
   height: 6px;
   border-radius: 3px;
-  background: #08d6a2;
+  background: #078cff;
   animation: wave 0.75s ease-in-out infinite;
 }
 
@@ -1061,7 +1061,7 @@ header {
 
 .lensStatusBadge.statusReady {
   background: rgba(7, 140, 255, 0.15);
-  color: #08d6a2;
+  color: #078cff;
   border: 1px solid rgba(7, 140, 255, 0.4);
 }
 
@@ -1173,7 +1173,7 @@ header {
 }
 
 .metricDot.sugg {
-  background: #08d6a2;
+  background: #078cff;
   box-shadow: 0 0 6px rgba(7, 140, 255, 0.6);
 }
 
@@ -1198,8 +1198,8 @@ header {
 
 .metricCount.crit { color: #ff5c5c; }
 .metricCount.warn { color: #ffb347; }
-.metricCount.sugg { color: #08d6a2; }
-.metricCount.zero { color: #5a756d; }
+.metricCount.sugg { color: #078cff; }
+.metricCount.zero { color: #849bb4; }
 
 .metricText {
   font-size: 12px;
@@ -1228,7 +1228,7 @@ header {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.2px;
-  color: #08d6a2;
+  color: #078cff;
 }
 
 .lensIssuesList {
@@ -1286,7 +1286,7 @@ header {
 
 .lensSevPill.sev-suggestion {
   background: rgba(7, 140, 255, 0.2);
-  color: #08d6a2;
+  color: #078cff;
   border: 1px solid rgba(7, 140, 255, 0.5);
 }
 
@@ -1303,14 +1303,14 @@ header {
   background: rgba(0, 0, 0, 0.4);
   padding: 10px 14px;
   border-radius: 8px;
-  border-left: 3px solid #08d6a2;
+  border-left: 3px solid #078cff;
 }
 
 .lensExcerptBox small {
   display: block;
   font-size: 10px;
   font-weight: 700;
-  color: #08d6a2;
+  color: #078cff;
   letter-spacing: 1px;
   margin-bottom: 4px;
 }
@@ -1337,7 +1337,7 @@ header {
 }
 
 .lensWhyMatters {
-  color: #a7c0b8;
+  color: #849bb4;
 }
 
 .lensFixBox {
@@ -1356,7 +1356,7 @@ header {
 
 .lensFixHead span {
   font-size: 11px;
-  color: #08d6a2;
+  color: #078cff;
   letter-spacing: 1px;
   font-weight: 700;
 }
@@ -1364,7 +1364,7 @@ header {
 .lensCopyBtn {
   background: rgba(7, 140, 255, 0.15);
   border: 1px solid rgba(7, 140, 255, 0.35);
-  color: #08d6a2;
+  color: #078cff;
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 11px;
@@ -1381,7 +1381,7 @@ header {
   font-family: "JetBrains Mono", monospace;
   font-size: 13px;
   line-height: 1.55;
-  color: #d1ede4;
+  color: #f0f7ff;
   white-space: pre-wrap;
   margin: 0;
 }
@@ -1405,7 +1405,7 @@ header {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 1px;
-  color: #08d6a2;
+  color: #078cff;
   margin-bottom: 10px;
 }
 
@@ -1430,7 +1430,7 @@ header {
   content: "•";
   position: absolute;
   left: 2px;
-  color: #08d6a2;
+  color: #078cff;
 }
 
 /* Document Viewer (Side-by-side) */
@@ -1486,8 +1486,8 @@ header {
 }
 
 .docViewerBtn:hover {
-  color: #08d6a2;
-  border-color: #08d6a2;
+  color: #078cff;
+  border-color: #078cff;
 }
 
 .docViewerBtn.close {
@@ -1529,7 +1529,7 @@ header {
 .docPreviewContent {
   font-family: "JetBrains Mono", monospace;
   font-size: 11px;
-  color: #d1ede4;
+  color: #f0f7ff;
   white-space: pre-wrap;
   background: rgba(0, 0, 0, 0.3);
   padding: 12px;
@@ -1608,7 +1608,7 @@ header {
     gap: 6px;
     border: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.04);
-    color: #08d6a2;
+    color: #078cff;
     border-radius: 999px;
     padding: 6px 12px;
     font-size: 10px;
@@ -1727,7 +1727,7 @@ header {
 .histActionBtn:not(.danger):hover {
   color: #ffffff !important;
   background: rgba(7, 140, 255, 0.40) !important;
-  border-color: #08d6a2 !important;
+  border-color: #078cff !important;
   transform: scale(1.04);
 }
 .histIcon.del,
