@@ -38,12 +38,14 @@ def health():
 
 @router.get('/document/{filename}/view')
 def view_document(filename: str):
-    """Opens the uploaded file inside the browser (PDF inline, Excel/Word/CSV/TXT as HTML)."""
+    """Opens the uploaded file inside the browser (PDF inline, fixed HTML direct, Excel/Word/CSV/TXT as HTML)."""
     file_path = _resolve_upload(filename)
     name = _display_name(file_path.name)
     if file_path.suffix.lower() == '.pdf':
         return FileResponse(path=file_path, media_type='application/pdf',
                             headers={'Content-Disposition': f'inline; filename="{name}"'})
+    if file_path.name.startswith('fixed_') and file_path.suffix.lower() in ('.html', '.htm'):
+        return HTMLResponse(file_path.read_text(encoding='utf-8', errors='ignore'))
     return HTMLResponse(viewer_service.render_html(file_path, name))
 
 
@@ -66,6 +68,8 @@ async def review(
         history = []
 
     doc_meta = None
+    stored_name = None
+    raw_doc_text = None
     combined_text = text or ''
     file_name = ''
 
@@ -115,6 +119,7 @@ async def review(
             }
 
         file_content = extracted.get('text', '')
+        raw_doc_text = file_content
         combined_text = (
             f"[ATTACHED DOCUMENT FOR REVIEW: {file_name}]\n"
             f"==================== DOCUMENT CONTENT ====================\n"
@@ -127,9 +132,34 @@ async def review(
     if not combined_text.strip():
         raise HTTPException(status_code=400, detail='Please provide content or upload a document to review.')
 
-    result = lens_service.review_content(combined_text, file_name=file_name, conversation_history=history)
+    result = lens_service.review_content(
+        combined_text,
+        file_name=file_name,
+        conversation_history=history,
+        raw_document_text=raw_doc_text
+    )
     if doc_meta:
         result['document_metadata'] = doc_meta
+
+    if result.get('modified_document'):
+        mod = result['modified_document']
+        fixed_html = mod.get('fixed_html') or ''
+        fixed_txt = mod.get('fixed_text') or ''
+        base_id = stored_name or uuid.uuid4().hex[:8]
+        html_name = f"fixed_{Path(base_id).stem}.html"
+        txt_name = f"fixed_{Path(base_id).stem}.txt"
+        try:
+            if fixed_html:
+                (UPLOADS_DIR / html_name).write_text(fixed_html, encoding='utf-8')
+                qh = quote(html_name)
+                mod['download_url'] = f"/api/document/{qh}"
+                mod['view_url'] = f"/api/document/{qh}/view"
+            if fixed_txt:
+                (UPLOADS_DIR / txt_name).write_text(fixed_txt, encoding='utf-8')
+                qt = quote(txt_name)
+                mod['txt_download_url'] = f"/api/document/{qt}"
+        except Exception:
+            pass
 
     return result
 

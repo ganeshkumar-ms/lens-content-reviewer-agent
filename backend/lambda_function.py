@@ -153,6 +153,12 @@ def lambda_handler(event, context):
                     'isBase64Encoded': True,
                     'body': base64.b64encode(file_path.read_bytes()).decode('ascii'),
                 }
+            if file_path.suffix.lower() in ('.html', '.htm') and safe_stored.startswith('fixed_'):
+                return {
+                    'statusCode': 200,
+                    'headers': {**CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8'},
+                    'body': file_path.read_text(encoding='utf-8', errors='replace'),
+                }
             html_out = viewer_service.render_html(file_path, disp)
             return {
                 'statusCode': 200,
@@ -202,6 +208,7 @@ def lambda_handler(event, context):
 
         doc_meta = None
         file_name = ''
+        file_content = ''
         combined_text = text or ''
 
         if file_obj:
@@ -257,7 +264,12 @@ def lambda_handler(event, context):
             return _json_response(400, {'detail': 'Please provide content or upload a document to review.'})
 
         try:
-            result = lens_service.review_content(combined_text, file_name=file_name, conversation_history=history)
+            result = lens_service.review_content(
+                combined_text,
+                file_name=file_name,
+                conversation_history=history,
+                raw_document_text=file_content if file_obj else (text or '')
+            )
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -265,6 +277,41 @@ def lambda_handler(event, context):
                 'type': 'chat',
                 'message': "I'm ready to assist. Please share the content, draft, SOP, or contract you would like to audit for consistency and publish readiness.",
             }
+
+        mod_doc = result.get('modified_document')
+        if isinstance(mod_doc, dict) and mod_doc.get('fixed_html'):
+            try:
+                fixed_id = uuid.uuid4().hex[:8]
+                safe_fixed_html = _sanitize_filename(mod_doc.get('filename') or 'Fixed_Document.html')
+                if not safe_fixed_html.lower().endswith('.html'):
+                    safe_fixed_html += '.html'
+                stored_fixed_html = f"fixed_{fixed_id}_{safe_fixed_html}"
+                html_bytes = mod_doc['fixed_html'].encode('utf-8')
+                (TMP_UPLOADS / stored_fixed_html).write_bytes(html_bytes)
+                try:
+                    s3_client.put_object(Bucket=S3_BUCKET, Key=f'uploads/{stored_fixed_html}', Body=html_bytes, ContentType='text/html; charset=utf-8')
+                except Exception:
+                    pass
+
+                safe_fixed_txt = _sanitize_filename(mod_doc.get('txt_filename') or 'Fixed_Document.txt')
+                if not safe_fixed_txt.lower().endswith('.txt'):
+                    safe_fixed_txt += '.txt'
+                stored_fixed_txt = f"fixed_{fixed_id}_{safe_fixed_txt}"
+                txt_bytes = (mod_doc.get('fixed_text') or '').encode('utf-8')
+                (TMP_UPLOADS / stored_fixed_txt).write_bytes(txt_bytes)
+                try:
+                    s3_client.put_object(Bucket=S3_BUCKET, Key=f'uploads/{stored_fixed_txt}', Body=txt_bytes, ContentType='text/plain; charset=utf-8')
+                except Exception:
+                    pass
+
+                qh = quote(stored_fixed_html)
+                qt = quote(stored_fixed_txt)
+                mod_doc['stored_name'] = stored_fixed_html
+                mod_doc['download_url'] = f'/api/document/{qh}'
+                mod_doc['view_url'] = f'/api/document/{qh}/view'
+                mod_doc['txt_download_url'] = f'/api/document/{qt}'
+            except Exception as ex:
+                print(f"Error saving fixed document in Lambda: {ex}")
 
         if doc_meta:
             result['document_metadata'] = doc_meta

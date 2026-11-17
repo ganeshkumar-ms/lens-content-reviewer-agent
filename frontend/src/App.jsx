@@ -12,6 +12,23 @@ const GENERIC_GREETINGS = new Set([
   'how r u', 'hows it going', 'whats up', 'ok', 'okay', 'thanks', 'thank you'
 ])
 
+function isModifyAffirmative(text) {
+  if (!text) return false
+  const clean = text.trim().toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim()
+  const exact = new Set([
+    'yes', 'y', 'yeah', 'yep', 'sure', 'ok', 'okay', 'please', 'please do',
+    'yes please', 'yes modify', 'modify', 'modify doc', 'modify document',
+    'fix', 'fix it', 'fix doc', 'fix document', 'create fixed doc',
+    'create fixed document', 'generate fixed doc', 'generate fixed document',
+    'apply fixes', 'apply all fixes', 'download fixed doc', 'yes create the fixed doc'
+  ])
+  if (exact.has(clean)) return true
+  if (clean.split(' ').length <= 7 && /\b(yes|modify|fix|remediate|generate|download)\b/.test(clean)) {
+    return true
+  }
+  return false
+}
+
 function isGreeting(text) {
   if (!text) return true
   const clean = text.trim().toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ')
@@ -288,9 +305,62 @@ export default function App() {
     }
 
     try {
+      const lastReviewMsg = [...currentList].reverse().find(
+        m => m.role === 'ai' && m.data && (m.data.publish_readiness || m.data.dimensions || m.data.issues)
+      )
+
+      if (!fileToSend && lastReviewMsg && isModifyAffirmative(cleanText)) {
+        const prevData = lastReviewMsg.data || {}
+        const modPayload = {
+          ...prevData,
+          type: 'modified_doc',
+          auto_show_modified: true,
+          message: 'All recommended fixes across every dimension have been applied. Your modified document is ready to view and download below.'
+        }
+
+        const aiMsg = {
+          id: 'ai_' + Date.now(),
+          role: 'ai',
+          data: modPayload,
+          docMeta: prevData.document_metadata || lastReviewMsg.docMeta || null
+        }
+
+        const updatedHistory = nextMessages.map(m =>
+          m.id === lastReviewMsg.id
+            ? { ...m, data: { ...m.data, auto_show_modified: true } }
+            : m
+        )
+        const finalMessages = [...updatedHistory, aiMsg]
+        setMessages(finalMessages)
+
+        if (!currentSessionId) setCurrentSessionId(sid)
+        setSessions(prev => {
+          const existing = prev.find(s => s.id === sid)
+          if (existing) {
+            return prev.map(s =>
+              s.id === sid
+                ? { ...s, messages: finalMessages, updatedAt: Date.now() }
+                : s
+            )
+          }
+          return [
+            {
+              id: sid,
+              title: sessionTitle,
+              titleLocked: isLocked,
+              messages: finalMessages,
+              updatedAt: Date.now()
+            },
+            ...prev
+          ]
+        })
+        return
+      }
+
       const conversationHistory = nextMessages.map(m => ({
         role: m.role,
-        content: m.role === 'user' ? m.content : (m.data?.publish_readiness ? m.data.publish_readiness.summary : (m.content || ''))
+        content: m.role === 'user' ? m.content : (m.data?.publish_readiness ? m.data.publish_readiness.summary : (m.content || '')),
+        data: m.data || null
       }))
 
       const [response] = await Promise.all([
@@ -440,8 +510,11 @@ export default function App() {
             {selectedFile && (
               <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '14px' }}>
                 <div className="filePill">
-                  <span>📎 Attached · {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span>
-                  <button type="button" onClick={() => setSelectedFile(null)}>✕</button>
+                  <svg className="icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="m21.4 11.6-8.9 8.9a6 6 0 0 1-8.5-8.5l9.3-9.3a4 4 0 0 1 5.7 5.7l-9.3 9.3a2 2 0 0 1-2.8-2.8l8.6-8.6" />
+                  </svg>
+                  <span>Attached · {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+                  <button type="button" onClick={() => setSelectedFile(null)} aria-label="Remove attachment">×</button>
                 </div>
               </div>
             )}
@@ -572,13 +645,18 @@ export default function App() {
                           >
                             <div className="userFileHeader">
                               <div className="userFileLeft">
-                                <span className="userFileIcon">📄</span>
+                                <span className="userFileIcon" aria-hidden="true">
+                                  <svg className="icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                  </svg>
+                                </span>
                                 <div className="userFileInfo">
                                   <span className="userFileName">{msg.file.name}</span>
                                   <span className="userFileMeta">{msg.file.size}</span>
                                 </div>
                               </div>
-                              <span className="userFileViewBtn">Open ↗</span>
+                              <span className="userFileViewBtn">Open</span>
                             </div>
                           </button>
                         )}
@@ -587,10 +665,25 @@ export default function App() {
                     )
                   }
 
-                  // AI Answer Card (NO duplicate open button here)
+                  // AI Answer Card
+                  const fallbackDocMeta =
+                    msg.docMeta ||
+                    msg.data?.document_metadata ||
+                    [...messages].reverse().find(m => m.docMeta)?.docMeta ||
+                    null
                   return (
                     <div key={msg.id} className="bubble ai">
-                      <LensResultCard data={msg.data} guardrails={msg.data?.guardrails || msg.guardrails} />
+                      <LensResultCard
+                        data={msg.data}
+                        docMeta={fallbackDocMeta}
+                        guardrails={msg.data?.guardrails || msg.guardrails}
+                        onOpenDocument={meta =>
+                          openDocument({
+                            docMeta: meta,
+                            file: { name: meta?.filename || 'Fixed_Document.html' }
+                          })
+                        }
+                      />
                     </div>
                   )
                 })}

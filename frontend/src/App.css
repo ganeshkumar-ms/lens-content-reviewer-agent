@@ -254,7 +254,8 @@ header {
 }
 
 .promptGlow {
-  max-width: 730px;
+  max-width: 780px;
+  width: 100%;
   margin: auto;
   position: relative;
   animation: rise 1s 0.17s both;
@@ -515,13 +516,13 @@ header {
   height: 100%;
   width: 100%;
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 280px 1fr;
   transition: grid-template-columns 0.3s;
   overflow: hidden;
 }
 
 .layout.withViewer {
-  grid-template-columns: 260px 1fr 480px;
+  grid-template-columns: 280px 1fr 480px;
 }
 
 /* Sidebar */
@@ -2167,4 +2168,687 @@ html, body {
 
 .attachRemove:hover {
   color: #ffffff;
+}
+
+
+/* ==========================================================================
+   LENS ENTERPRISE TABULAR RAG & DOCUMENT REMEDIATION UI
+   ========================================================================== */
+
+.lensTopMetaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.lensGuardrailPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.lensGuardrailPill.passed {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.lensGuardrailPill.blocked {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.6);
+}
+
+.lensTraceBadge {
+  font-size: 11px;
+  font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  font-weight: 600;
+  color: #38bdf8;
+  letter-spacing: 0.6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(7, 140, 255, 0.08);
+  border: 1px solid rgba(7, 140, 255, 0.25);
+  margin-left: auto;
+}
+
+/* Executive RAG Banner */
+.lensExecBanner {
+  background: rgba(4, 20, 35, 0.85);
+  border: 1px solid rgba(7, 140, 255, 0.24);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lensExecTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.lensExecLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lensRagBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lensRagBadge.compact {
+  padding: 4px 10px;
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+
+.lensRagDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.lensRagBadge.rag-green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.lensRagBadge.rag-amber {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.48);
+}
+
+.lensRagBadge.rag-red {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.52);
+}
+
+.lensRagSummaryPills {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lensMiniCount {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+.lensMiniCount.red {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.lensMiniCount.amber {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.lensMiniCount.green {
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.lensExecScoreBox {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.lensExecScoreNum {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.lensExecScoreMax {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.lensExecSummaryText {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #dbeafe;
+  margin: 0;
+}
+
+/* Enterprise Audit Tables */
+.lensTableSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lensTableWrap {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(7, 140, 255, 0.25);
+  background: rgba(3, 15, 27, 0.82);
+}
+
+.lensEnterpriseTable,
+.bubble table.lensEnterpriseTable {
+  display: table !important;
+  width: 100% !important;
+  min-width: 680px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+  table-layout: auto !important;
+}
+
+.lensEnterpriseTable th,
+.lensEnterpriseTable td,
+.bubble .lensEnterpriseTable th,
+.bubble .lensEnterpriseTable td {
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+}
+
+.lensColScore,
+.lensScoreText,
+.lensColRag,
+.lensRagBadge,
+.bubble .lensColScore,
+.bubble .lensScoreText,
+.bubble .lensColRag,
+.bubble .lensRagBadge {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.lensEnterpriseTable thead tr {
+  background: rgba(7, 140, 255, 0.12);
+  border-bottom: 1px solid rgba(7, 140, 255, 0.28);
+}
+
+.lensEnterpriseTable th {
+  padding: 11px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: #7dd3fc;
+  white-space: nowrap;
+}
+
+.lensEnterpriseTable tbody tr {
+  border-bottom: 1px solid rgba(7, 140, 255, 0.14);
+  transition: background 0.15s ease;
+}
+
+.lensEnterpriseTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.lensEnterpriseTable tbody tr:hover {
+  background: rgba(7, 140, 255, 0.06);
+}
+
+.lensEnterpriseTable td {
+  padding: 12px 14px;
+  vertical-align: top;
+  line-height: 1.55;
+  color: #e2e8f0;
+}
+
+.lensColDim strong {
+  display: block;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.lensSubLoc {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.lensScoreText {
+  font-weight: 800;
+  font-size: 13px;
+  font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+.lensScoreText.rag-green {
+  color: #34d399;
+}
+
+.lensScoreText.rag-amber {
+  color: #fbbf24;
+}
+
+.lensScoreText.rag-red {
+  color: #f87171;
+}
+
+.lensColFinding {
+  color: #cbd5e1;
+}
+
+.lensColAction {
+  color: #93c5fd;
+  font-weight: 500;
+}
+
+.lensTableExcerpt {
+  font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.09);
+  border-left: 2px solid #ef4444;
+  padding: 6px 9px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+
+.lensTableIssueText {
+  color: #e2e8f0;
+  font-size: 12.8px;
+}
+
+.lensTableFixWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.lensTableFixText {
+  color: #d1fae5;
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 2px solid #10b981;
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 12.8px;
+  width: 100%;
+}
+
+.lensTableCopyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lensTableCopyBtn:hover {
+  background: rgba(16, 185, 129, 0.28);
+  color: #ffffff;
+}
+
+.lensMutedDash {
+  color: var(--muted);
+}
+
+/* Modify Document Yes / No Decision Prompt */
+.lensModifyPromptSection {
+  margin-top: 4px;
+}
+
+.lensModifyDecisionBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(7, 140, 255, 0.12), rgba(16, 185, 129, 0.1));
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  flex-wrap: wrap;
+}
+
+.lensModifyDecisionText {
+  flex: 1 1 320px;
+}
+
+.lensModifyTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  font-size: 14.5px;
+  margin-bottom: 5px;
+}
+
+.lensModifyDecisionText p {
+  margin: 0;
+  font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.lensModifyBtnGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lensDecisionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lensDecisionBtn.yes {
+  background: #10b981;
+  color: #02140e;
+  border: 1px solid #34d399;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.28);
+}
+
+.lensDecisionBtn.yes:hover {
+  background: #34d399;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+}
+
+.lensDecisionBtn.no {
+  background: rgba(15, 23, 42, 0.7);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.lensDecisionBtn.no:hover {
+  background: rgba(30, 41, 59, 0.9);
+  color: #ffffff;
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+.lensModifyDeclinedBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(4, 20, 35, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  font-size: 12.5px;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+.lensActionLinkBtn {
+  background: transparent;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lensActionLinkBtn:hover {
+  background: rgba(56, 189, 248, 0.14);
+  color: #ffffff;
+}
+
+/* Fixed Document Ready Panel */
+.lensFixedDocPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: rgba(4, 22, 36, 0.92);
+  border: 1px solid rgba(16, 185, 129, 0.42);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.lensFixedDocHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.22);
+}
+
+.lensFixedDocTitleLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lensFixedDocTitleLeft h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.lensFixedDocActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lensActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(7, 140, 255, 0.1);
+  color: #7dd3fc;
+  border: 1px solid rgba(7, 140, 255, 0.32);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lensActionBtn:hover,
+.lensActionBtn.active {
+  background: rgba(7, 140, 255, 0.22);
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+
+.lensActionBtn.primary {
+  background: #10b981;
+  color: #02140e;
+  border-color: #34d399;
+}
+
+.lensActionBtn.primary:hover {
+  background: #34d399;
+  color: #02140e;
+}
+
+.lensFixedDocSummary {
+  margin: 0;
+  font-size: 13px;
+  color: #a7f3d0;
+  line-height: 1.5;
+}
+
+.lensFixedDocPreviewBox {
+  background: rgba(2, 10, 18, 0.78);
+  border: 1px solid rgba(7, 140, 255, 0.22);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.lensFixedDocPreviewLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: rgba(16, 185, 129, 0.12);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #34d399;
+  text-transform: uppercase;
+}
+
+.lensFixedDocContent {
+  padding: 16px 18px;
+  max-height: 360px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lensFixedDocContent p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.68;
+  color: #f1f5f9;
+  white-space: pre-wrap;
+}
+
+/* Side-by-Side Compare in LENS */
+.lensCompareGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.lensCompareCol {
+  background: rgba(2, 10, 18, 0.8);
+  border: 1px solid rgba(7, 140, 255, 0.22);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.lensCompareColHead {
+  padding: 9px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.lensCompareColHead.original {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+.lensCompareColHead.fixed {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.lensCompareColBody {
+  padding: 14px 16px;
+  max-height: 360px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lensCompareColBody p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+  .lensCompareGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Enterprise Reference Codes & Benchmark Subtitles */
+.lensColCode {
+  white-space: nowrap;
+}
+
+.lensRefCode {
+  display: inline-block;
+  font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(7, 140, 255, 0.1);
+  border: 1px solid rgba(7, 140, 255, 0.28);
+  padding: 3px 7px;
+  border-radius: 5px;
+  letter-spacing: 0.4px;
+}
+
+.lensDimBenchmark {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.2px;
+  line-height: 1.4;
+  color: #94a3b8;
+  font-weight: 400;
 }
