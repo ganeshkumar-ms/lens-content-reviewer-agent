@@ -149,7 +149,7 @@ button, input, textarea {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 7px;
-  background: linear-gradient(90deg, #fff, #078cff, #47ebc2, #fff);
+  background: linear-gradient(90deg, #fff, #078cff, #38bdf8, #fff);
   background-size: 200% auto;
   -webkit-background-clip: text;
   color: transparent;
@@ -238,7 +238,7 @@ header {
 }
 
 .home h1 span {
-  background: linear-gradient(95deg, #078cff, #47ebc2, #fff);
+  background: linear-gradient(95deg, #078cff, #38bdf8, #fff);
   -webkit-background-clip: text;
   color: transparent;
 }
@@ -265,7 +265,7 @@ header {
   position: absolute;
   inset: -3px;
   border-radius: 25px;
-  background: conic-gradient(from 0deg, transparent 40%, #078cff, transparent 56%, #0b3d32, transparent 72%);
+  background: conic-gradient(from 0deg, transparent 40%, #078cff, transparent 56%, #38bdf8, transparent 72%);
   filter: blur(10px);
   opacity: 0.35;
   animation: spin 8s linear infinite;
@@ -279,8 +279,8 @@ header {
   align-items: center;
   border: 1px solid var(--line-strong);
   border-radius: 23px;
-  background: rgba(6, 35, 27, 0.94);
-  box-shadow: 0 25px 90px rgba(0, 0, 0, 0.7);
+  background: #051a2c;
+  box-shadow: 0 25px 90px rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(22px);
 }
 
@@ -349,16 +349,17 @@ header {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  margin: 12px auto 0 !important;
+  margin: 0 auto !important;
   text-align: center !important;
   gap: 8px;
   max-width: 730px;
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
   background: rgba(7, 140, 255, 0.08);
-  border: 1px solid rgba(7, 140, 255, 0.28);
+  border: 1px solid rgba(7, 140, 255, 0.32);
   color: #38bdf8;
   font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .filePill button {
@@ -367,6 +368,8 @@ header {
   color: #ff5c5c;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 800;
+  margin-left: 4px;
 }
 
 /* Recent Conversations on Home Page */
@@ -442,7 +445,7 @@ header {
 }
 
 .card p {
-  color: #a3c4ba;
+  color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
   margin: 0;
@@ -454,12 +457,47 @@ header {
 
 .emptyCard {
   cursor: default;
+  min-height: 0 !important;
+  grid-column: 1 / -1 !important;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+  padding: 18px 24px !important;
+  background: rgba(7, 140, 255, 0.04) !important;
+  border: 1px dashed rgba(7, 140, 255, 0.25) !important;
+  border-radius: 16px;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+.emptyCard small {
+  display: block !important;
+  font-size: 11px !important;
+  letter-spacing: 1.5px;
+  color: #078cff !important;
+  font-weight: 700;
+  margin: 0 0 6px !important;
+  text-transform: uppercase;
+}
+
+.emptyCard b {
+  display: block !important;
+  font-size: 14.5px !important;
+  color: #fff !important;
+  margin: 0 0 4px !important;
+}
+
+.emptyCard p {
+  display: block !important;
+  font-size: 13px !important;
+  color: var(--muted) !important;
+  margin: 0 !important;
 }
 
 .emptyCard:hover {
-  transform: none;
-  border-color: var(--line);
-  box-shadow: none;
+  transform: none !important;
+  border-color: rgba(7, 140, 255, 0.25) !important;
+  box-shadow: none !important;
 }
 
 /* Chat Layout */
@@ -489,7 +527,7 @@ header {
 /* Sidebar */
 .side {
   border-right: 1px solid var(--line);
-  background: rgba(6, 35, 27, 0.95);
+  background: #041522;
   backdrop-filter: blur(24px);
   padding: 20px 14px;
   display: flex;
@@ -971,7 +1009,7 @@ header {
 /* Composer Area */
 .composerArea {
   padding: 12px clamp(18px, 6vw, 80px) 22px;
-  background: linear-gradient(to top, rgba(2, 17, 13, 0.95), transparent);
+  background: linear-gradient(to top, rgba(2, 12, 22, 0.95), transparent);
 }
 
 .composer {
@@ -980,7 +1018,7 @@ header {
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 20px;
-  background: rgba(6, 35, 27, 0.92);
+  background: #051a2c;
   box-shadow: 0 16px 55px rgba(0, 0, 0, 0.5);
   transition: all 0.3s;
 }
@@ -1185,15 +1223,15 @@ header {
 }
 
 .metricDot.cons {
-  background: #47ebc2;
-  box-shadow: 0 0 6px rgba(71, 235, 194, 0.6);
+  background: #38bdf8;
+  box-shadow: 0 0 6px rgba(7, 140, 255, 0.6);
 }
 
 .metricLabel {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.6px;
-  color: #a3c4ba;
+  color: #849bb4;
   text-transform: uppercase;
 }
 
@@ -1247,21 +1285,16 @@ header {
 .lensIssueCard {
   padding: 16px;
   border-radius: 12px;
-  background: rgba(2, 17, 13, 0.6);
+  background: rgba(5, 26, 44, 0.7);
   border: 1px solid var(--line);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  transition: all 0.2s ease;
 }
 
-.lensIssueCard.sev-critical {
-  border-color: rgba(255, 92, 92, 0.35);
-  background: rgba(255, 92, 92, 0.04);
-}
-
-.lensIssueCard.sev-warning {
-  border-color: rgba(255, 179, 71, 0.35);
-  background: rgba(255, 179, 71, 0.04);
+.lensIssueCard:hover {
+  border-color: rgba(7, 140, 255, 0.35);
 }
 
 .lensIssueHead {

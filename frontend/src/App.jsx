@@ -438,9 +438,11 @@ export default function App() {
             </div>
 
             {selectedFile && (
-              <div className="filePill">
-                <span>Attached: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span>
-                <button onClick={() => setSelectedFile(null)}>✕</button>
+              <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginTop: '14px' }}>
+                <div className="filePill">
+                  <span>📎 Attached · {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)</span>
+                  <button type="button" onClick={() => setSelectedFile(null)}>✕</button>
+                </div>
               </div>
             )}
 
