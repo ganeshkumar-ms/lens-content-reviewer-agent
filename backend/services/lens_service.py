@@ -754,12 +754,20 @@ def review_content(
         except Exception as e2:
             print(f"[LENS Service] Fallback call also failed ({e2}).")
 
-    if not parsed or (parsed.get('type') != 'review' and not parsed.get('publish_readiness') and not file_name and len(pure_source) < 40):
-        if parsed and parsed.get('type') == 'chat':
-            return parsed
-        return _rule_based_review_fallback(pure_source, file_name)
+    if parsed and parsed.get('type') == 'chat' and not file_name:
+        return parsed
 
-    if not parsed.get('publish_readiness'):
+    if not file_name and len((pure_source or '').split()) < 18:
+        if parsed and parsed.get('message'):
+            return {'type': 'chat', 'message': parsed['message']}
+        if parsed and (parsed.get('publish_readiness') or {}).get('summary'):
+            return {'type': 'chat', 'message': parsed['publish_readiness']['summary']}
+        return {
+            'type': 'chat',
+            'message': 'Please attach the document (PDF, DOCX, TXT) or paste the full content you would like me to audit across the 10 Enterprise Governance Dimensions.',
+        }
+
+    if not parsed or not parsed.get('publish_readiness'):
         return _rule_based_review_fallback(pure_source, file_name)
 
     parsed['type'] = 'review'
