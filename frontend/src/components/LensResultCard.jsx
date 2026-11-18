@@ -594,6 +594,190 @@ function diffWordsLcs(aTokens, bTokens) {
   return { left, right, changed }
 }
 
+function buildClientFormattedPdfBlob(title, fixedText) {
+  const cleanTitle = String(title || 'Remediated Document').replace(/\*\*/g, '').replace(/^#+\s*/, '').trim()
+  const blocks = [{ kind: 'title', runs: [{ text: cleanTitle, bold: true }] }]
+
+  const parseInline = (txt) => {
+    const parts = String(txt || '').split(/(\*\*[^*]+\*\*)/g)
+    const runs = []
+    for (const part of parts) {
+      if (!part) continue
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        runs.push({ text: part.slice(2, -2), bold: true })
+      } else {
+        const cleaned = part.replace(/`/g, '')
+        if (cleaned) runs.push({ text: cleaned, bold: false })
+      }
+    }
+    return runs.length ? runs : [{ text: '', bold: false }]
+  }
+
+  const lines = String(fixedText || '').replace(/\r\n/g, '\n').split('\n')
+  lines.forEach((rawLn, idx) => {
+    const st = rawLn.trim()
+    if (!st) return
+    const mH = st.match(/^(#{1,4})\s+(.+)$/)
+    if (mH) {
+      const htxt = mH[2].replace(/\*\*/g, '').trim()
+      if (htxt && (idx > 0 || htxt.toLowerCase() !== cleanTitle.toLowerCase())) {
+        blocks.push({ kind: mH[1].length <= 2 ? 'h1' : 'h2', runs: [{ text: htxt, bold: true }] })
+      }
+      return
+    }
+    const mBHead = st.match(/^\*\*([^*]{2,110})\*\*[:\s]*$/)
+    if (mBHead) {
+      const htxt = mBHead[1].trim()
+      if (htxt && (idx > 0 || htxt.toLowerCase() !== cleanTitle.toLowerCase())) {
+        blocks.push({ kind: 'h2', runs: [{ text: htxt, bold: true }] })
+      }
+      return
+    }
+    if ((st.length < 85 && st === st.toUpperCase() && /[A-Z]/.test(st)) || /^(?:\d+\.|SECTION|ARTICLE|PART)\s+[A-Z0-9]/.test(st)) {
+      const htxt = st.replace(/\*\*/g, '').trim()
+      if (htxt.length <= 100) {
+        blocks.push({ kind: 'h2', runs: [{ text: htxt, bold: true }] })
+        return
+      }
+    }
+    const mBul = st.match(/^(?:[•\-*▪▸])\s+(.+)$/)
+    if (mBul) {
+      blocks.push({ kind: 'bullet', runs: parseInline(mBul[1].trim()) })
+      return
+    }
+    blocks.push({ kind: 'para', runs: parseInline(st) })
+  })
+
+  const pdfEsc = (s) =>
+    String(s || '')
+      .replace(/[^\x20-\x7E]/g, ' ')
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)')
+
+  const pageW = 595.28
+  const pageH = 841.89
+  const marginX = 52
+  const maxW = pageW - 2 * marginX
+  const topY = pageH - 56
+  const bottomY = 52
+  const pages = [[]]
+  let y = topY
+
+  const ensureSpace = (needed) => {
+    if (y - needed < bottomY) {
+      pages.push([])
+      y = topY
+    }
+  }
+  const emitLine = (x, font, size, text, r = 0.08, g = 0.11, b = 0.16) => {
+    pages[pages.length - 1].push(
+      `BT /${font} ${size.toFixed(1)} Tf ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfEsc(text)}) Tj ET`
+    )
+  }
+  const wrapRuns = (runs, fontSize, availW) => {
+    const maxChars = Math.max(22, Math.floor(availW / (fontSize * 0.5)))
+    const out = [[]]
+    let curr = 0
+    for (const run of runs) {
+      const words = run.text.split(/(\s+)/)
+      for (const w of words) {
+        if (!w) continue
+        if (curr + w.length > maxChars && curr > 0 && !/^\s+$/.test(w)) {
+          out.push([])
+          curr = 0
+        }
+        if (curr === 0 && /^\s+$/.test(w)) continue
+        out[out.length - 1].push({ text: w, bold: run.bold })
+        curr += w.length
+      }
+    }
+    return out.filter(ln => ln.length > 0)
+  }
+
+  for (const blk of blocks) {
+    if (blk.kind === 'title') {
+      const wrapped = wrapRuns(blk.runs, 16, maxW)
+      ensureSpace(wrapped.length * 21 + 14)
+      for (const ln of wrapped) {
+        emitLine(marginX, 'F2', 16, ln.map(s => s.text).join(''), 0.086, 0.227, 0.373)
+        y -= 21
+      }
+      pages[pages.length - 1].push(`0.086 0.227 0.373 RG 1.2 w ${marginX.toFixed(2)} ${(y + 6).toFixed(2)} m ${(pageW - marginX).toFixed(2)} ${(y + 6).toFixed(2)} l S`)
+      y -= 10
+    } else if (blk.kind === 'h1' || blk.kind === 'h2') {
+      const fsize = blk.kind === 'h1' ? 13 : 11.5
+      const lead = blk.kind === 'h1' ? 17 : 15.5
+      const wrapped = wrapRuns(blk.runs, fsize, maxW)
+      ensureSpace(wrapped.length * lead + 8)
+      y -= 6
+      for (const ln of wrapped) {
+        emitLine(marginX, 'F2', fsize, ln.map(s => s.text).join(''), 0.086, 0.227, 0.373)
+        y -= lead
+      }
+      y -= 2
+    } else if (blk.kind === 'bullet') {
+      const wrapped = wrapRuns(blk.runs, 10.5, maxW - 16)
+      ensureSpace(wrapped.length * 14.5 + 4)
+      wrapped.forEach((ln, li) => {
+        if (li === 0) emitLine(marginX + 4, 'F2', 10.5, '-', 0.086, 0.227, 0.373)
+        let cx = marginX + 16
+        for (const seg of ln) {
+          emitLine(cx, seg.bold ? 'F2' : 'F1', 10.5, seg.text)
+          cx += seg.text.length * (10.5 * 0.49)
+        }
+        y -= 14.5
+      })
+      y -= 2
+    } else {
+      const wrapped = wrapRuns(blk.runs, 10.5, maxW)
+      ensureSpace(wrapped.length * 14.5 + 5)
+      for (const ln of wrapped) {
+        let cx = marginX
+        for (const seg of ln) {
+          emitLine(cx, seg.bold ? 'F2' : 'F1', 10.5, seg.text)
+          cx += seg.text.length * (10.5 * 0.49)
+        }
+        y -= 14.5
+      }
+      y -= 5
+    }
+  }
+
+  const objs = []
+  const pageIds = []
+  const contentIds = []
+  let nextId = 5
+  for (let i = 0; i < pages.length; i++) {
+    pageIds.push(nextId)
+    contentIds.push(nextId + 1)
+    nextId += 2
+  }
+  objs.push('<< /Type /Catalog /Pages 2 0 R >>')
+  objs.push(`<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`)
+  objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>')
+  objs.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>')
+  pages.forEach((cmds, i) => {
+    const stream = cmds.join('\n')
+    objs.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentIds[i]} 0 R >>`)
+    objs.push(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`)
+  })
+
+  let pdf = '%PDF-1.4\n'
+  const offsets = [0]
+  objs.forEach((body, idx) => {
+    offsets.push(pdf.length)
+    pdf += `${idx + 1} 0 obj\n${body}\nendobj\n`
+  })
+  const xrefPos = pdf.length
+  pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n`
+  offsets.slice(1).forEach(off => {
+    pdf += `${String(off).padStart(10, '0')} 00000 n \n`
+  })
+  pdf += `trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF\n`
+  return new Blob([pdf], { type: 'application/pdf' })
+}
+
 function renderFormattedFixedContent(fixedText) {
   const renderInlineBold = (txt) => {
     const parts = String(txt || '').split(/(\*\*[^*]+\*\*)/g)
@@ -826,11 +1010,35 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
   }
 
   const inputName = docMeta?.filename || ''
-  const origExt = modDoc.original_ext || (inputName.includes('.') ? '.' + inputName.split('.').pop().toLowerCase() : '.txt')
-  const fixedFilename = modDoc.filename || `${docTitle}_Fixed${origExt}`
+  const origExt = (inputName.includes('.') ? '.' + inputName.split('.').pop().toLowerCase() : (modDoc.original_ext || '.txt'))
+  const baseStem = (docTitle || 'Remediated_Document').replace(/\.[^/.]+$/, '')
+  const fixedFilename = `${baseStem}_Fixed${origExt}`
 
   function handleDownloadFixedSameFormat() {
-    if (modDoc.download_url) {
+    // For PDF inputs: if backend already provided a real .pdf URL, use it; otherwise generate real formatted PDF client-side (never .html!)
+    if (origExt === '.pdf') {
+      if (modDoc.download_url && /\.pdf(?:$|\?)/i.test(modDoc.download_url)) {
+        const a = document.createElement('a')
+        a.href = absApiUrl(modDoc.download_url)
+        a.download = fixedFilename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        return
+      }
+      const pdfBlob = buildClientFormattedPdfBlob(`${baseStem} (Fixed & Verified)`, fixedText)
+      const url = URL.createObjectURL(pdfBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fixedFilename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      return
+    }
+
+    if (modDoc.download_url && modDoc.download_url.toLowerCase().includes(origExt)) {
       const a = document.createElement('a')
       a.href = absApiUrl(modDoc.download_url)
       a.download = fixedFilename
@@ -839,8 +1047,9 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
       document.body.removeChild(a)
       return
     }
+
     const isHtml = origExt === '.html' || origExt === '.htm'
-    const payload = isHtml ? (modDoc.fixed_html || synthesizeFixedHtml(docTitle, fixedText, dimensions)) : fixedText
+    const payload = isHtml ? (modDoc.fixed_html || synthesizeFixedHtml(docTitle, fixedText, dimensions)) : fixedText.replace(/\*\*/g, '')
     const mime = isHtml ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8'
     const blob = new Blob([payload], { type: mime })
     const url = URL.createObjectURL(blob)
