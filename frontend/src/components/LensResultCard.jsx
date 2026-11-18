@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 const absApiUrl = (u) => (!u ? null : u.startsWith('http') ? u : `${API_BASE}${u}`)
@@ -749,6 +749,26 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
     issues.map(i => i.excerpt).filter(Boolean).join('\n\n') ||
     'Original content submitted for review.'
 
+  const leftCompareRef = useRef(null)
+  const rightCompareRef = useRef(null)
+  const syncingScrollRef = useRef(null)
+
+  const handleSyncScroll = (sourceSide) => {
+    if (syncingScrollRef.current && syncingScrollRef.current !== sourceSide) return
+    const srcEl = sourceSide === 'left' ? leftCompareRef.current : rightCompareRef.current
+    const dstEl = sourceSide === 'left' ? rightCompareRef.current : leftCompareRef.current
+    if (!srcEl || !dstEl) return
+    const srcMax = srcEl.scrollHeight - srcEl.clientHeight
+    const dstMax = dstEl.scrollHeight - dstEl.clientHeight
+    if (srcMax <= 0 || dstMax <= 0) return
+    syncingScrollRef.current = sourceSide
+    const ratio = srcEl.scrollTop / srcMax
+    dstEl.scrollTop = ratio * dstMax
+    requestAnimationFrame(() => {
+      syncingScrollRef.current = null
+    })
+  }
+
   function handleCopyFix(id, text) {
     if (!text) return
     navigator.clipboard.writeText(text).then(() => {
@@ -1148,7 +1168,11 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
                     <div className="lensCompareColHead original">
                       <span>ORIGINAL SUBMITTED CONTENT</span>
                     </div>
-                    <div className="lensCompareColBody">
+                    <div
+                      ref={leftCompareRef}
+                      className="lensCompareColBody"
+                      onScroll={() => handleSyncScroll('left')}
+                    >
                       {diffResult.rows.map((row, idx) => (
                         <div key={idx} className={`lensDiffLine${row.changed ? ' changed del' : ''}`}>
                           {row.left.map((tok, ti) => (
@@ -1164,7 +1188,11 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
                     <div className="lensCompareColHead fixed">
                       <span>MODIFIED &amp; FIXED DOCUMENT (RAG: GREEN)</span>
                     </div>
-                    <div className="lensCompareColBody">
+                    <div
+                      ref={rightCompareRef}
+                      className="lensCompareColBody"
+                      onScroll={() => handleSyncScroll('right')}
+                    >
                       {diffResult.rows.map((row, idx) => (
                         <div key={idx} className={`lensDiffLine${row.changed ? ' changed add' : ''}`}>
                           {row.right.map((tok, ti) => (
