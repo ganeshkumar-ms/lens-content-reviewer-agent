@@ -16,6 +16,13 @@ def _strip_md_inline(text: str) -> str:
     return s
 
 
+def _strip_analysis_wrapper(text: str) -> str:
+    s = (text or '').replace('\r\n', '\n')
+    # Remove [FULL-DOCUMENT ANALYSIS METADATA] block if present
+    s = re.sub(r'\[FULL-DOCUMENT ANALYSIS METADATA\][\s\S]*?(?:Detailed Readable Text[^\n]*\n+|={6,}\s*)', '', s, flags=re.IGNORECASE)
+    return s.strip()
+
+
 def parse_formatted_blocks(title: str, fixed_text: str) -> list[dict]:
     """Parses raw/markdown text into structured blocks: title, h1, h2, bullet, para."""
     blocks: list[dict] = []
@@ -23,7 +30,7 @@ def parse_formatted_blocks(title: str, fixed_text: str) -> list[dict]:
     if clean_title:
         blocks.append({'kind': 'title', 'runs': [{'text': clean_title, 'bold': True}]})
 
-    lines = (fixed_text or '').replace('\r\n', '\n').split('\n')
+    lines = _strip_analysis_wrapper(fixed_text).split('\n')
     for idx, raw_ln in enumerate(lines):
         st = raw_ln.strip()
         if not st:
@@ -107,11 +114,17 @@ def build_formatted_pdf_bytes(title: str, fixed_text: str) -> bytes:
             pages.append([])
             y = top_y
 
-    def emit_line(x: float, font: str, size: float, text: str, color: tuple[float, float, float] = (0.08, 0.11, 0.16)):
+    def emit_runs_line(x: float, size: float, runs_on_line: list[dict], color: tuple[float, float, float] = (0.08, 0.11, 0.16)):
         r, g, b = color
-        pages[-1].append(
-            f"BT /{font} {size:.1f} Tf {r:.3f} {g:.3f} {b:.3f} rg 1 0 0 1 {x:.2f} {y:.2f} Tm ({_pdf_escape(text)}) Tj ET"
-        )
+        parts = [f"BT {r:.3f} {g:.3f} {b:.3f} rg 1 0 0 1 {x:.2f} {y:.2f} Tm"]
+        for seg in runs_on_line:
+            font = 'F2' if seg['bold'] else 'F1'
+            parts.append(f"/{font} {size:.1f} Tf ({_pdf_escape(seg['text'])}) Tj")
+        parts.append("ET")
+        pages[-1].append(" ".join(parts))
+
+    def emit_line(x: float, font: str, size: float, text: str, color: tuple[float, float, float] = (0.08, 0.11, 0.16)):
+        emit_runs_line(x, size, [{'text': text, 'bold': (font == 'F2')}], color)
 
     def wrap_runs(runs: list[dict], font_size: float, avail_w: float) -> list[list[dict]]:
         # Approximate average char width for Helvetica (~0.51 * font_size)
@@ -162,22 +175,14 @@ def build_formatted_pdf_bytes(title: str, fixed_text: str) -> bytes:
             for li, ln in enumerate(wrapped):
                 if li == 0:
                     emit_line(margin_x + 4.0, 'F2', 10.5, '-', (0.086, 0.227, 0.373))
-                cx = margin_x + 16.0
-                for seg in ln:
-                    font = 'F2' if seg['bold'] else 'F1'
-                    emit_line(cx, font, 10.5, seg['text'])
-                    cx += len(seg['text']) * (10.5 * 0.49)
+                emit_runs_line(margin_x + 16.0, 10.5, ln)
                 y -= 14.5
             y -= 2.0
         else:
             wrapped = wrap_runs(runs, 10.5, max_w)
             ensure_space(len(wrapped) * 14.5 + 5.0)
             for ln in wrapped:
-                cx = margin_x
-                for seg in ln:
-                    font = 'F2' if seg['bold'] else 'F1'
-                    emit_line(cx, font, 10.5, seg['text'])
-                    cx += len(seg['text']) * (10.5 * 0.49)
+                emit_runs_line(margin_x, 10.5, ln)
                 y -= 14.5
             y -= 5.0
 

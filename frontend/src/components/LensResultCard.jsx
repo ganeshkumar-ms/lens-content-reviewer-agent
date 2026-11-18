@@ -597,6 +597,10 @@ function diffWordsLcs(aTokens, bTokens) {
 function buildClientFormattedPdfBlob(title, fixedText) {
   const cleanTitle = String(title || 'Remediated Document').replace(/\*\*/g, '').replace(/^#+\s*/, '').trim()
   const blocks = [{ kind: 'title', runs: [{ text: cleanTitle, bold: true }] }]
+  const strippedText = String(fixedText || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\[FULL-DOCUMENT ANALYSIS METADATA\][\s\S]*?(?:Detailed Readable Text[^\n]*\n+|={6,}\s*)/gi, '')
+    .trim()
 
   const parseInline = (txt) => {
     const parts = String(txt || '').split(/(\*\*[^*]+\*\*)/g)
@@ -613,7 +617,7 @@ function buildClientFormattedPdfBlob(title, fixedText) {
     return runs.length ? runs : [{ text: '', bold: false }]
   }
 
-  const lines = String(fixedText || '').replace(/\r\n/g, '\n').split('\n')
+  const lines = strippedText.split('\n')
   lines.forEach((rawLn, idx) => {
     const st = rawLn.trim()
     if (!st) return
@@ -670,10 +674,16 @@ function buildClientFormattedPdfBlob(title, fixedText) {
       y = topY
     }
   }
-  const emitLine = (x, font, size, text, r = 0.08, g = 0.11, b = 0.16) => {
+  const emitRunsLine = (x, size, runsOnLine, r = 0.08, g = 0.11, b = 0.16) => {
+    const segCmds = runsOnLine
+      .map(seg => `/${seg.bold ? 'F2' : 'F1'} ${size.toFixed(1)} Tf (${pdfEsc(seg.text)}) Tj`)
+      .join(' ')
     pages[pages.length - 1].push(
-      `BT /${font} ${size.toFixed(1)} Tf ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfEsc(text)}) Tj ET`
+      `BT ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm ${segCmds} ET`
     )
+  }
+  const emitLine = (x, font, size, text, r = 0.08, g = 0.11, b = 0.16) => {
+    emitRunsLine(x, size, [{ text, bold: font === 'F2' }], r, g, b)
   }
   const wrapRuns = (runs, fontSize, availW) => {
     const maxChars = Math.max(22, Math.floor(availW / (fontSize * 0.5)))
@@ -721,11 +731,7 @@ function buildClientFormattedPdfBlob(title, fixedText) {
       ensureSpace(wrapped.length * 14.5 + 4)
       wrapped.forEach((ln, li) => {
         if (li === 0) emitLine(marginX + 4, 'F2', 10.5, '-', 0.086, 0.227, 0.373)
-        let cx = marginX + 16
-        for (const seg of ln) {
-          emitLine(cx, seg.bold ? 'F2' : 'F1', 10.5, seg.text)
-          cx += seg.text.length * (10.5 * 0.49)
-        }
+        emitRunsLine(marginX + 16, 10.5, ln)
         y -= 14.5
       })
       y -= 2
@@ -733,11 +739,7 @@ function buildClientFormattedPdfBlob(title, fixedText) {
       const wrapped = wrapRuns(blk.runs, 10.5, maxW)
       ensureSpace(wrapped.length * 14.5 + 5)
       for (const ln of wrapped) {
-        let cx = marginX
-        for (const seg of ln) {
-          emitLine(cx, seg.bold ? 'F2' : 'F1', 10.5, seg.text)
-          cx += seg.text.length * (10.5 * 0.49)
-        }
+        emitRunsLine(marginX, 10.5, ln)
         y -= 14.5
       }
       y -= 5
