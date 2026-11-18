@@ -363,6 +363,16 @@ export default function App() {
         data: m.data || null
       }))
 
+      if (fileToSend && typeof fileToSend.arrayBuffer === 'function') {
+        try {
+          window.__lensOrigFiles = window.__lensOrigFiles || new Map()
+          const buf = await fileToSend.arrayBuffer()
+          window.__lensOrigFiles.set(fileToSend.name, buf)
+        } catch {
+          // ignore
+        }
+      }
+
       const [response] = await Promise.all([
         reviewContent({
           file: fileToSend,

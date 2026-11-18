@@ -1021,12 +1021,20 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
     // For PDF inputs: preserve 100% of original PDF (exact fonts, sizes, layout, tables, graphs) + append LENS remediated fixes
     if (origExt === '.pdf') {
       const origUrl = absApiUrl(docMeta?.view_url || docMeta?.url || data.document_metadata?.view_url || data.document_metadata?.url)
-      if (origUrl) {
+      let origBytes = (typeof window !== 'undefined' && window.__lensOrigFiles?.get(inputName)) || null
+      if (!origBytes && origUrl) {
         try {
           const resp = await fetch(origUrl)
           if (resp.ok) {
-            const origBytes = await resp.arrayBuffer()
-            const pdfDoc = await PDFDocument.load(origBytes, { ignoreEncryption: true })
+            origBytes = await resp.arrayBuffer()
+          }
+        } catch (err) {
+          console.warn('Could not fetch original PDF from URL:', err)
+        }
+      }
+      if (origBytes) {
+        try {
+          const pdfDoc = await PDFDocument.load(origBytes, { ignoreEncryption: true })
             const firstPage = pdfDoc.getPages()[0]
             const { width: pageW, height: pageH } = firstPage ? firstPage.getSize() : { width: 595.28, height: 841.89 }
             const helv = await pdfDoc.embedFont(StandardFonts.Helvetica)
@@ -1102,7 +1110,6 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
             document.body.removeChild(a)
             URL.revokeObjectURL(url)
             return
-          }
         } catch (err) {
           console.warn('Could not preserve original PDF via pdf-lib, falling back to formatted PDF:', err)
         }
