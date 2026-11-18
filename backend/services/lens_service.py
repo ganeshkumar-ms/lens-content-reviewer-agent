@@ -420,19 +420,25 @@ def _apply_fixes_to_source(source_text: str, issues: list, ai_fixed_text: str = 
 
 
 def build_fixed_document_html(title: str, fixed_text: str, issues_count: int) -> str:
+    from services import lens_export_service
+
     esc_title = html_lib.escape(title or "Modified_Document")
-    lines = (fixed_text or "").splitlines()
+    parsed_blocks = lens_export_service.parse_formatted_blocks(title or "Modified_Document", fixed_text or "")
     blocks = []
-    for ln in lines:
-        st = ln.strip()
-        if not st:
-            blocks.append('<div class="doc-blank">&nbsp;</div>')
-        elif (len(st) < 85 and st.isupper()) or re.match(r'^(?:#{1,4}\s+|(?:\d+\.|[A-Z]\.|SECTION|ARTICLE|PART)\s+)', st):
-            blocks.append(f'<div class="doc-heading">{html_lib.escape(st.lstrip("# "))}</div>')
-        elif re.match(r'^(?:[\•\-\*\▪]|\([a-z0-9]+\))\s+', st):
-            blocks.append(f'<div class="doc-bullet">{html_lib.escape(st)}</div>')
+    for blk in parsed_blocks:
+        kind = blk['kind']
+        if kind == 'title':
+            continue
+        inline_html = ''.join(
+            f"<strong>{html_lib.escape(r['text'])}</strong>" if r['bold'] else html_lib.escape(r['text'])
+            for r in blk['runs']
+        )
+        if kind in ('h1', 'h2'):
+            blocks.append(f'<div class="doc-heading">{inline_html}</div>')
+        elif kind == 'bullet':
+            blocks.append(f'<div class="doc-bullet">• {inline_html}</div>')
         else:
-            blocks.append(f'<div class="doc-para">{html_lib.escape(st)}</div>')
+            blocks.append(f'<div class="doc-para">{inline_html}</div>')
 
     body_html = "".join(blocks)
     return f"""<!DOCTYPE html>

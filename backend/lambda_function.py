@@ -11,7 +11,7 @@ from urllib.parse import quote, unquote
 
 import boto3
 from botocore.config import Config
-from services import lens_service, document_service, file_validation, viewer_service
+from services import lens_service, lens_export_service, document_service, file_validation, viewer_service
 
 TMP_UPLOADS = Path(tempfile.gettempdir()) / 'uploads'
 TMP_UPLOADS.mkdir(parents=True, exist_ok=True)
@@ -279,37 +279,61 @@ def lambda_handler(event, context):
             }
 
         mod_doc = result.get('modified_document')
-        if isinstance(mod_doc, dict) and mod_doc.get('fixed_html'):
+        if isinstance(mod_doc, dict) and (mod_doc.get('fixed_text') or mod_doc.get('fixed_html')):
             try:
                 fixed_id = uuid.uuid4().hex[:8]
-                safe_fixed_html = _sanitize_filename(mod_doc.get('filename') or 'Fixed_Document.html')
-                if not safe_fixed_html.lower().endswith('.html'):
-                    safe_fixed_html += '.html'
-                stored_fixed_html = f"fixed_{fixed_id}_{safe_fixed_html}"
-                html_bytes = mod_doc['fixed_html'].encode('utf-8')
+                orig_ext = Path(doc_filename).suffix.lower() if doc_filename else '.txt'
+                if not orig_ext:
+                    orig_ext = '.txt'
+                orig_stem = _sanitize_filename(Path(doc_filename).stem if doc_filename else 'Fixed_Document')
+                fixed_txt = mod_doc.get('fixed_text') or ''
+                fixed_html = mod_doc.get('fixed_html') or ''
+
+                # Always store HTML view for in-browser side viewer
+                stored_fixed_html = f"fixed_{fixed_id}_{orig_stem}.html"
+                html_bytes = fixed_html.encode('utf-8')
                 (TMP_UPLOADS / stored_fixed_html).write_bytes(html_bytes)
                 try:
                     s3_client.put_object(Bucket=S3_BUCKET, Key=f'uploads/{stored_fixed_html}', Body=html_bytes, ContentType='text/html; charset=utf-8')
                 except Exception:
                     pass
 
-                safe_fixed_txt = _sanitize_filename(mod_doc.get('txt_filename') or 'Fixed_Document.txt')
-                if not safe_fixed_txt.lower().endswith('.txt'):
-                    safe_fixed_txt += '.txt'
-                stored_fixed_txt = f"fixed_{fixed_id}_{safe_fixed_txt}"
-                txt_bytes = (mod_doc.get('fixed_text') or '').encode('utf-8')
-                (TMP_UPLOADS / stored_fixed_txt).write_bytes(txt_bytes)
-                try:
-                    s3_client.put_object(Bucket=S3_BUCKET, Key=f'uploads/{stored_fixed_txt}', Body=txt_bytes, ContentType='text/plain; charset=utf-8')
-                except Exception:
-                    pass
+                # Build the exact matching format for download (PDF, DOCX, HTML, or TXT)
+                if orig_ext == '.pdf':
+                    out_filename = f"{orig_stem}_Fixed.pdf"
+                    stored_dl = f"fixed_{fixed_id}_{orig_stem}.pdf"
+                    out_bytes = lens_export_service.build_formatted_pdf_bytes(f"{orig_stem} (Fixed & Verified)", fixed_txt)
+                    out_ctype = 'application/pdf'
+                elif orig_ext in ('.docx', '.doc'):
+                    out_filename = f"{orig_stem}_Fixed.docx"
+                    stored_dl = f"fixed_{fixed_id}_{orig_stem}.docx"
+                    out_bytes = lens_export_service.build_formatted_docx_bytes(f"{orig_stem} (Fixed & Verified)", fixed_txt)
+                    out_ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                elif orig_ext in ('.html', '.htm'):
+                    out_filename = f"{orig_stem}_Fixed.html"
+                    stored_dl = stored_fixed_html
+                    out_bytes = html_bytes
+                    out_ctype = 'text/html; charset=utf-8'
+                else:
+                    out_filename = f"{orig_stem}_Fixed.txt"
+                    stored_dl = f"fixed_{fixed_id}_{orig_stem}.txt"
+                    out_bytes = lens_export_service._strip_md_inline(fixed_txt).encode('utf-8')
+                    out_ctype = 'text/plain; charset=utf-8'
 
+                if stored_dl != stored_fixed_html:
+                    (TMP_UPLOADS / stored_dl).write_bytes(out_bytes)
+                    try:
+                        s3_client.put_object(Bucket=S3_BUCKET, Key=f'uploads/{stored_dl}', Body=out_bytes, ContentType=out_ctype)
+                    except Exception:
+                        pass
+
+                q_dl = quote(stored_dl)
                 qh = quote(stored_fixed_html)
-                qt = quote(stored_fixed_txt)
-                mod_doc['stored_name'] = stored_fixed_html
-                mod_doc['download_url'] = f'/api/document/{qh}'
-                mod_doc['view_url'] = f'/api/document/{qh}/view'
-                mod_doc['txt_download_url'] = f'/api/document/{qt}'
+                mod_doc['filename'] = out_filename
+                mod_doc['original_ext'] = orig_ext
+                mod_doc['stored_name'] = stored_dl
+                mod_doc['download_url'] = f'/api/document/{q_dl}'
+                mod_doc['view_url'] = f'/api/document/{q_dl}/view' if orig_ext == '.pdf' else f'/api/document/{qh}/view'
             except Exception as ex:
                 print(f"Error saving fixed document in Lambda: {ex}")
 

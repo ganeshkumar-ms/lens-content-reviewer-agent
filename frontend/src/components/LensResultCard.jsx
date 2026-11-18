@@ -594,6 +594,46 @@ function diffWordsLcs(aTokens, bTokens) {
   return { left, right, changed }
 }
 
+function renderFormattedFixedContent(fixedText) {
+  const renderInlineBold = (txt) => {
+    const parts = String(txt || '').split(/(\*\*[^*]+\*\*)/g)
+    return parts.map((part, idx) =>
+      part.startsWith('**') && part.endsWith('**') && part.length > 4
+        ? <strong key={idx} style={{ color: '#ffffff', fontWeight: 700 }}>{part.slice(2, -2)}</strong>
+        : part.replace(/`/g, '')
+    )
+  }
+
+  const lines = String(fixedText || '').replace(/\r\n/g, '\n').split('\n')
+  return lines.map((rawLn, idx) => {
+    const st = rawLn.trim()
+    if (!st) return <div key={idx} style={{ height: '8px' }} />
+
+    const mHash = st.match(/^(#{1,4})\s+(.+)$/)
+    if (mHash) {
+      const clean = mHash[2].replace(/\*\*/g, '').trim()
+      return <h4 key={idx} style={{ margin: '12px 0 6px', color: '#7dd3fc', fontSize: '15px', fontWeight: 800 }}>{clean}</h4>
+    }
+
+    const mBoldHead = st.match(/^\*\*([^*]{2,110})\*\*[:\s]*$/)
+    if (mBoldHead) {
+      return <h4 key={idx} style={{ margin: '12px 0 6px', color: '#7dd3fc', fontSize: '14.5px', fontWeight: 800 }}>{mBoldHead[1].trim()}</h4>
+    }
+
+    const mBullet = st.match(/^(?:[•\-*▪▸])\s+(.+)$/)
+    if (mBullet) {
+      return (
+        <div key={idx} style={{ paddingLeft: '16px', marginBottom: '5px', display: 'flex', gap: '8px' }}>
+          <span style={{ color: '#38bdf8' }}>•</span>
+          <span>{renderInlineBold(mBullet[1])}</span>
+        </div>
+      )
+    }
+
+    return <p key={idx} style={{ margin: '0 0 8px' }}>{renderInlineBold(st)}</p>
+  })
+}
+
 function buildHighlightedDiff(originalText, fixedText) {
   const origLines = String(originalText || '').split(/\r?\n/)
   const fixLines = String(fixedText || '').split(/\r?\n/)
@@ -1213,9 +1253,7 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
                   <span>MODIFIED &amp; REMEDIATED DOCUMENT READY FOR DOWNLOAD</span>
                 </div>
                 <div className="lensFixedDocContent">
-                  {fixedText.split(/\n\s*\n/).map((para, i) => (
-                    <p key={i}>{para}</p>
-                  ))}
+                  {renderFormattedFixedContent(fixedText)}
                 </div>
               </div>
             )}
