@@ -217,11 +217,13 @@ def _clean_extracted_source(raw_text: str) -> str:
                 cleaned = cleaned.split('\n==========================================================', 1)[0]
         except Exception:
             pass
-    if '[FULL-DOCUMENT ANALYSIS METADATA]' in cleaned and '====================================================================\n' in cleaned:
-        try:
-            cleaned = cleaned.split('====================================================================\n', 1)[1]
-        except Exception:
-            pass
+    if '[FULL-DOCUMENT ANALYSIS METADATA]' in cleaned:
+        cleaned = re.sub(
+            r'\[FULL-DOCUMENT ANALYSIS METADATA\][\s\S]*?(?:Detailed Readable Text[^\n]*\n+|={6,}\s*)',
+            '',
+            cleaned,
+            flags=re.IGNORECASE,
+        )
     cleaned = cleaned.replace('(cid:127)', '•')
     return cleaned.strip()
 
