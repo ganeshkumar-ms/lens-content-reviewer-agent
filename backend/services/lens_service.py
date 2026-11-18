@@ -106,7 +106,7 @@ RAG Status Rules:
 === OUTPUT FORMAT (ALWAYS VALID JSON ONLY) ===
 
 MODE 1: CONVERSATIONAL & MULTILINGUAL ASSISTANCE (type: "chat")
-Trigger ONLY when the user sends a greeting, casual slang, or general question without any document or draft to review.
+Trigger when the user sends a greeting, casual slang, general question within LENS's content-review domain, or asks a follow-up / "tell extra" / "more specific" / "retry" question about a previous review using conversation history. Provide a thorough, specific answer.
 {
   "type": "chat",
   "message": "<Your helpful conversational reply without emojis>"
