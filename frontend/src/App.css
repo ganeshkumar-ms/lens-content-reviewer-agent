@@ -2767,6 +2767,93 @@ html, body {
 }
 
 /* Side-by-Side Compare in LENS */
+.lensCompareWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lensDiffLegend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(5, 22, 38, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 8px;
+  font-size: 11.5px;
+}
+
+.lensDiffCount {
+  color: #cbd5e1;
+  font-weight: 700;
+  margin-right: auto;
+}
+
+.lensDiffBadge {
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.lensDiffBadge.del {
+  background: rgba(239, 68, 68, 0.28);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+}
+
+.lensDiffBadge.add {
+  background: rgba(16, 185, 129, 0.28);
+  color: #a7f3d0;
+  border: 1px solid rgba(52, 211, 153, 0.55);
+}
+
+.lensDiffLine {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e2e8f0;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lensDiffLine.changed.del {
+  background: rgba(239, 68, 68, 0.08);
+  border-left-color: #f87171;
+}
+
+.lensDiffLine.changed.add {
+  background: rgba(16, 185, 129, 0.08);
+  border-left-color: #34d399;
+}
+
+.lensDiffDel {
+  background: rgba(239, 68, 68, 0.34);
+  color: #fecaca;
+  text-decoration: line-through;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border-bottom: 1px solid rgba(248, 113, 113, 0.75);
+}
+
+.lensDiffAdd {
+  background: rgba(16, 185, 129, 0.34);
+  color: #a7f3d0;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border-bottom: 1px solid rgba(52, 211, 153, 0.8);
+}
+
+.lensDiffEmpty {
+  opacity: 0.25;
+  user-select: none;
+}
+
 .lensCompareGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 
+const API_BASE = import.meta.env.VITE_API_BASE || ''
+const absApiUrl = (u) => (!u ? null : u.startsWith('http') ? u : `${API_BASE}${u}`)
+
 const ENTERPRISE_10_DIMENSIONS = [
   {
     dimension: 'Clarity & Plain-Language Readability',
@@ -538,6 +541,126 @@ function synthesizeFixedHtml(title, fixedText, dimensions) {
 </html>`
 }
 
+function tokenizeWords(line) {
+  return String(line || '').split(/(\s+)/).filter(Boolean)
+}
+
+function diffWordsLcs(aTokens, bTokens) {
+  const m = aTokens.length
+  const n = bTokens.length
+  if (m * n > 25000) {
+    return {
+      left: aTokens.map(t => ({ text: t, type: /^\s+$/.test(t) ? 'eq' : 'del' })),
+      right: bTokens.map(t => ({ text: t, type: /^\s+$/.test(t) ? 'eq' : 'add' })),
+      changed: aTokens.join('') !== bTokens.join('')
+    }
+  }
+  const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1))
+  for (let i = m - 1; i >= 0; i--) {
+    for (let j = n - 1; j >= 0; j--) {
+      dp[i][j] = aTokens[i] === bTokens[j]
+        ? dp[i + 1][j + 1] + 1
+        : Math.max(dp[i + 1][j], dp[i][j + 1])
+    }
+  }
+  const left = []
+  const right = []
+  let i = 0, j = 0, changed = false
+  while (i < m && j < n) {
+    if (aTokens[i] === bTokens[j]) {
+      left.push({ text: aTokens[i], type: 'eq' })
+      right.push({ text: bTokens[j], type: 'eq' })
+      i++; j++
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      left.push({ text: aTokens[i], type: /^\s+$/.test(aTokens[i]) ? 'eq' : 'del' })
+      if (!/^\s+$/.test(aTokens[i])) changed = true
+      i++
+    } else {
+      right.push({ text: bTokens[j], type: /^\s+$/.test(bTokens[j]) ? 'eq' : 'add' })
+      if (!/^\s+$/.test(bTokens[j])) changed = true
+      j++
+    }
+  }
+  while (i < m) {
+    left.push({ text: aTokens[i], type: /^\s+$/.test(aTokens[i]) ? 'eq' : 'del' })
+    if (!/^\s+$/.test(aTokens[i])) changed = true
+    i++
+  }
+  while (j < n) {
+    right.push({ text: bTokens[j], type: /^\s+$/.test(bTokens[j]) ? 'eq' : 'add' })
+    if (!/^\s+$/.test(bTokens[j])) changed = true
+    j++
+  }
+  return { left, right, changed }
+}
+
+function buildHighlightedDiff(originalText, fixedText) {
+  const origLines = String(originalText || '').split(/\r?\n/)
+  const fixLines = String(fixedText || '').split(/\r?\n/)
+  const m = origLines.length
+  const n = fixLines.length
+  const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1))
+  for (let i = m - 1; i >= 0; i--) {
+    for (let j = n - 1; j >= 0; j--) {
+      dp[i][j] = origLines[i].trim() === fixLines[j].trim()
+        ? dp[i + 1][j + 1] + 1
+        : Math.max(dp[i + 1][j], dp[i][j + 1])
+    }
+  }
+  const rows = []
+  let i = 0, j = 0, changeCount = 0
+  while (i < m && j < n) {
+    if (origLines[i].trim() === fixLines[j].trim()) {
+      rows.push({
+        changed: false,
+        left: [{ text: origLines[i] || '\u00A0', type: 'eq' }],
+        right: [{ text: fixLines[j] || '\u00A0', type: 'eq' }]
+      })
+      i++; j++
+    } else if (dp[i + 1][j] === dp[i][j + 1]) {
+      const wd = diffWordsLcs(tokenizeWords(origLines[i]), tokenizeWords(fixLines[j]))
+      if (wd.changed) changeCount++
+      rows.push({ changed: wd.changed, left: wd.left, right: wd.right })
+      i++; j++
+    } else if (dp[i + 1][j] > dp[i][j + 1]) {
+      changeCount++
+      rows.push({
+        changed: true,
+        left: [{ text: origLines[i] || '\u00A0', type: origLines[i].trim() ? 'del' : 'eq' }],
+        right: [{ text: '\u00A0', type: 'empty' }]
+      })
+      i++
+    } else {
+      changeCount++
+      rows.push({
+        changed: true,
+        left: [{ text: '\u00A0', type: 'empty' }],
+        right: [{ text: fixLines[j] || '\u00A0', type: fixLines[j].trim() ? 'add' : 'eq' }]
+      })
+      j++
+    }
+  }
+  while (i < m) {
+    if (origLines[i].trim()) changeCount++
+    rows.push({
+      changed: Boolean(origLines[i].trim()),
+      left: [{ text: origLines[i] || '\u00A0', type: origLines[i].trim() ? 'del' : 'eq' }],
+      right: [{ text: '\u00A0', type: 'empty' }]
+    })
+    i++
+  }
+  while (j < n) {
+    if (fixLines[j].trim()) changeCount++
+    rows.push({
+      changed: Boolean(fixLines[j].trim()),
+      left: [{ text: '\u00A0', type: 'empty' }],
+      right: [{ text: fixLines[j] || '\u00A0', type: fixLines[j].trim() ? 'add' : 'eq' }]
+    })
+    j++
+  }
+  return { rows, changeCount }
+}
+
 export default function LensResultCard({ data, docMeta, guardrails: propGuardrails, onOpenDocument }) {
   const isDirectModDoc = data?.type === 'modified_doc' || Boolean(data?.auto_show_modified)
   const [modifyDecision, setModifyDecision] = useState(isDirectModDoc ? 'yes' : null)
@@ -642,25 +765,28 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
     })
   }
 
-  function handleDownloadFixedHtml() {
-    const htmlContent = modDoc.fixed_html || synthesizeFixedHtml(docTitle, fixedText, dimensions)
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = modDoc.filename || `${docTitle}_Fixed.html`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
+  const inputName = docMeta?.filename || ''
+  const origExt = modDoc.original_ext || (inputName.includes('.') ? '.' + inputName.split('.').pop().toLowerCase() : '.txt')
+  const fixedFilename = modDoc.filename || `${docTitle}_Fixed${origExt}`
 
-  function handleDownloadFixedTxt() {
-    const blob = new Blob([fixedText], { type: 'text/plain;charset=utf-8' })
+  function handleDownloadFixedSameFormat() {
+    if (modDoc.download_url) {
+      const a = document.createElement('a')
+      a.href = absApiUrl(modDoc.download_url)
+      a.download = fixedFilename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      return
+    }
+    const isHtml = origExt === '.html' || origExt === '.htm'
+    const payload = isHtml ? (modDoc.fixed_html || synthesizeFixedHtml(docTitle, fixedText, dimensions)) : fixedText
+    const mime = isHtml ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8'
+    const blob = new Blob([payload], { type: mime })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = modDoc.txt_filename || `${docTitle}_Fixed.txt`
+    a.download = fixedFilename
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -673,12 +799,14 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
     const blobUrl = URL.createObjectURL(blob)
     onOpenDocument({
-      filename: modDoc.filename || `${docTitle}_Fixed.html`,
-      view_url: modDoc.view_url || blobUrl,
-      url: modDoc.download_url || blobUrl,
+      filename: fixedFilename,
+      view_url: modDoc.view_url ? absApiUrl(modDoc.view_url) : blobUrl,
+      url: modDoc.download_url ? absApiUrl(modDoc.download_url) : blobUrl,
       preview: fixedText
     })
   }
+
+  const diffResult = showCompare ? buildHighlightedDiff(originalText, fixedText) : null
 
   if (data.type === 'modified_doc') {
     return (
@@ -698,16 +826,12 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
                 <span className="lensRagDot" />
                 GREEN · FIXED DOCUMENT READY
               </span>
-              <h4>{modDoc.filename || `${docTitle}_Fixed.html`}</h4>
+              <h4>{fixedFilename}</h4>
             </div>
             <div className="lensFixedDocActions">
-              <button type="button" className="lensActionBtn primary" onClick={handleDownloadFixedHtml}>
+              <button type="button" className="lensActionBtn primary" onClick={handleDownloadFixedSameFormat}>
                 <DownloadIcon />
-                <span>Download Fixed Document (.html)</span>
-              </button>
-              <button type="button" className="lensActionBtn" onClick={handleDownloadFixedTxt}>
-                <DownloadIcon />
-                <span>Download (.txt)</span>
+                <span>Download Fixed ({origExt})</span>
               </button>
               {onOpenDocument && (
                 <button type="button" className="lensActionBtn" onClick={handleOpenFixedInViewer}>
@@ -971,25 +1095,17 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
                   <span className="lensRagDot" />
                   GREEN · ALL {issues.length} CHANGES APPLIED
                 </span>
-                <h4>{modDoc.filename || `${docTitle}_Fixed.html`}</h4>
+                <h4>{fixedFilename}</h4>
               </div>
 
               <div className="lensFixedDocActions">
                 <button
                   type="button"
                   className="lensActionBtn primary"
-                  onClick={handleDownloadFixedHtml}
+                  onClick={handleDownloadFixedSameFormat}
                 >
                   <DownloadIcon />
-                  <span>Download Fixed Document (.html)</span>
-                </button>
-                <button
-                  type="button"
-                  className="lensActionBtn"
-                  onClick={handleDownloadFixedTxt}
-                >
-                  <DownloadIcon />
-                  <span>Download (.txt)</span>
+                  <span>Download Fixed ({origExt})</span>
                 </button>
                 {onOpenDocument && (
                   <button
@@ -1020,26 +1136,45 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
               </div>
             </div>
 
-            {showCompare ? (
-              <div className="lensCompareGrid">
-                <div className="lensCompareCol">
-                  <div className="lensCompareColHead original">
-                    <span>ORIGINAL SUBMITTED CONTENT</span>
-                  </div>
-                  <div className="lensCompareColBody">
-                    {originalText.split(/\n\s*\n/).map((para, i) => (
-                      <p key={i}>{para}</p>
-                    ))}
-                  </div>
+            {showCompare && diffResult ? (
+              <div className="lensCompareWrap">
+                <div className="lensDiffLegend">
+                  <span className="lensDiffCount">{diffResult.changeCount} line change(s) highlighted</span>
+                  <span className="lensDiffBadge del">Removed / Original</span>
+                  <span className="lensDiffBadge add">Added / Fixed</span>
                 </div>
-                <div className="lensCompareCol">
-                  <div className="lensCompareColHead fixed">
-                    <span>MODIFIED &amp; FIXED DOCUMENT (RAG: GREEN)</span>
+                <div className="lensCompareGrid">
+                  <div className="lensCompareCol">
+                    <div className="lensCompareColHead original">
+                      <span>ORIGINAL SUBMITTED CONTENT</span>
+                    </div>
+                    <div className="lensCompareColBody">
+                      {diffResult.rows.map((row, idx) => (
+                        <div key={idx} className={`lensDiffLine${row.changed ? ' changed del' : ''}`}>
+                          {row.left.map((tok, ti) => (
+                            tok.type === 'del'
+                              ? <mark key={ti} className="lensDiffDel">{tok.text}</mark>
+                              : <span key={ti} className={tok.type === 'empty' ? 'lensDiffEmpty' : ''}>{tok.text}</span>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="lensCompareColBody">
-                    {fixedText.split(/\n\s*\n/).map((para, i) => (
-                      <p key={i}>{para}</p>
-                    ))}
+                  <div className="lensCompareCol">
+                    <div className="lensCompareColHead fixed">
+                      <span>MODIFIED &amp; FIXED DOCUMENT (RAG: GREEN)</span>
+                    </div>
+                    <div className="lensCompareColBody">
+                      {diffResult.rows.map((row, idx) => (
+                        <div key={idx} className={`lensDiffLine${row.changed ? ' changed add' : ''}`}>
+                          {row.right.map((tok, ti) => (
+                            tok.type === 'add'
+                              ? <mark key={ti} className="lensDiffAdd">{tok.text}</mark>
+                              : <span key={ti} className={tok.type === 'empty' ? 'lensDiffEmpty' : ''}>{tok.text}</span>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
