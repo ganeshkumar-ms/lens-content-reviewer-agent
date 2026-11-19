@@ -282,10 +282,8 @@ def _extract_pdf_with_bedrock(file_bytes: bytes) -> str:
                 'content': [
                     {'document': {'format': 'pdf', 'name': 'uploaded_document', 'source': {'bytes': file_bytes}}},
                     {'text': (
-                        'Read ALL pages of this PDF document from start to finish (do not stop after page 1 or 2). '
-                        '1) State the exact title, author/issuer, industry/domain, and true document/artifact nature. '
-                        '2) List all section/chapter headings across the entire document. '
-                        '3) Transcribe detailed readable text, concepts, definitions, data, code, and tables from the beginning, middle, and end pages verbatim.'
+                        'Transcribe ALL readable text, headings, key-value fields (Date, Ref. No., To, Subject, etc.), paragraphs, bullet points, and tables from EVERY page of this PDF verbatim. '
+                        'Do NOT write "Page 1", "Page 2", or "[Page X of Y]" labels; simply separate pages with a blank line and "---". Do NOT add commentary, summaries, or metadata sections.'
                     )}
                 ]
             }],
@@ -400,8 +398,8 @@ def _extract_pdf_digital_text(file_bytes: bytes, total_pages_hint: int = 1) -> t
             for i in indices:
                 pt = (pdf.pages[i].extract_text() or '').strip()
                 if pt:
-                    page_texts.append(f"[Page {i + 1} of {pages_count}]\n{pt}")
-            joined = '\n\n'.join(page_texts)
+                    page_texts.append(pt)
+            joined = '\n\n---\n\n'.join(page_texts)
             if len(joined.strip()) >= 150:
                 return pages_count, joined
     except Exception:
@@ -422,6 +420,93 @@ def _extract_pdf_digital_text(file_bytes: bytes, total_pages_hint: int = 1) -> t
             extracted = pdfminer_extract_text(io.BytesIO(file_bytes), page_numbers=indices)
         if extracted and len(extracted.strip()) >= 150:
             return pages_count, extracted.strip()
+    except Exception:
+        pass
+
+    try:
+        import base64
+        page_texts = []
+        for s in re.findall(rb'stream[\r\n]+(.*?)endstream', file_bytes, re.S):
+            raw = s.strip()
+            txt = None
+            for dec in (
+                lambda b: zlib.decompress(b),
+                lambda b: zlib.decompress(base64.a85decode(b, adobe=b'~>' in b)),
+                lambda b: base64.a85decode(b, adobe=b'~>' in b),
+            ):
+                try:
+                    txt = dec(raw).decode('latin-1', errors='ignore')
+                    break
+                except Exception:
+                    pass
+            if not txt or ('BT' not in txt and 'Tj' not in txt and 'TJ' not in txt):
+                continue
+            items = []
+            for blk in re.findall(r'BT(.*?)ET', txt, re.S):
+                cx, cy = 0.0, 0.0
+                for tok in re.finditer(
+                    r'([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+Tm|'
+                    r'([\d.-]+)\s+([\d.-]+)\s+T[dD]|'
+                    r'\(([^()\\]*(?:\\.[^()\\]*)*)\)\s*Tj|'
+                    r'\[(.*?)\]\s*TJ',
+                    blk, re.S
+                ):
+                    if tok.group(5) is not None:
+                        cx, cy = float(tok.group(5)), float(tok.group(6))
+                    elif tok.group(7) is not None:
+                        cx += float(tok.group(7))
+                        cy += float(tok.group(8))
+                    else:
+                        if tok.group(9) is not None:
+                            s_val = tok.group(9).replace(r'\(', '(').replace(r'\)', ')').replace(r'\\', '\\')
+                        else:
+                            arr_parts = re.findall(r'\(([^()\\]*(?:\\.[^()\\]*)*)\)', tok.group(10))
+                            s_val = ''.join(p.replace(r'\(', '(').replace(r'\)', ')').replace(r'\\', '\\') for p in arr_parts)
+                        s_val = re.sub(r'\\227', ' - ', s_val)
+                        s_val = re.sub(r'\\177', ' • ', s_val)
+                        s_val = re.sub(r'\\\d{3}', ' ', s_val)
+                        if s_val.strip():
+                            items.append((round(cy, 1), round(cx, 1), s_val.strip()))
+            if not items:
+                continue
+            items.sort(key=lambda t: (-t[0], t[1]))
+            rows_grouped = []
+            cur_y = items[0][0]
+            cur_row = [items[0]]
+            for it in items[1:]:
+                if abs(it[0] - cur_y) <= 1.5:
+                    cur_row.append(it)
+                else:
+                    rows_grouped.append(cur_row)
+                    cur_y = it[0]
+                    cur_row = [it]
+            rows_grouped.append(cur_row)
+
+            page_lines = []
+            col_flags = []
+            for row in rows_grouped:
+                row.sort(key=lambda t: t[1])
+                has_col_gap = len(row) >= 2 and any(
+                    (row[i + 1][1] - (row[i][1] + len(row[i][2]) * 4.5)) > 18.0
+                    for i in range(len(row) - 1)
+                )
+                col_flags.append((row, has_col_gap))
+            for idx, (row, is_col) in enumerate(col_flags):
+                prev_col = idx > 0 and col_flags[idx - 1][1]
+                next_col = idx + 1 < len(col_flags) and col_flags[idx + 1][1]
+                sep = ' | ' if (is_col and (prev_col or next_col)) else ' '
+                line_str = sep.join(t[2] for t in row).strip()
+                if re.match(r'^Page\s+\d+\s+of\s+\d+$', line_str, re.IGNORECASE):
+                    continue
+                if line_str:
+                    page_lines.append(line_str)
+            if page_lines:
+                page_texts.append('\n'.join(page_lines))
+        if page_texts:
+            total_p = max(pages_count, len(page_texts))
+            joined = '\n\n---\n\n'.join(page_texts)
+            if len(joined.strip()) >= 100:
+                return total_p, joined
     except Exception:
         pass
 
@@ -569,6 +654,8 @@ def extract_text(file_bytes: bytes, filename: str, total_size_override: int = No
     meta['char_count'] = len(text)
     meta['is_empty'] = (actual_size == 0 or (kind in ('text', 'code') and len(text.strip()) == 0))
     meta['preview'] = text[:6000] if text else (note or '[Empty file - 0 bytes]')
+    if not meta['is_empty']:
+        meta['design_profile'] = extract_design_profile(file_bytes, filename)
 
     if meta['is_empty']:
         ai_text = '[FILE CONTENT IS EMPTY (0 BYTES)]'
@@ -581,3 +668,173 @@ def extract_text(file_bytes: bytes, filename: str, total_size_override: int = No
             ai_text = f'[Source code file, language: {meta["language"]}]\n{ai_text}'
 
     return {'text': ai_text, 'metadata': meta}
+
+def _is_neutral_dark(hx: str) -> bool:
+    if not hx or len(hx) != 7:
+        return True
+    r, g, b = int(hx[1:3], 16), int(hx[3:5], 16), int(hx[5:7], 16)
+    return max(r, g, b) < 55 and (max(r, g, b) - min(r, g, b)) < 20
+
+
+def _is_near_white(hx: str) -> bool:
+    if not hx or len(hx) != 7:
+        return True
+    r, g, b = int(hx[1:3], 16), int(hx[3:5], 16), int(hx[5:7], 16)
+    return min(r, g, b) > 242
+
+
+def _classify_font(font_name: str) -> tuple:
+    fn = (font_name or '').strip()
+    low = fn.lower()
+    if any(k in low for k in ('times', 'georgia', 'garamond', 'cambria', 'palatino', 'serif', 'baskerville')):
+        clean = fn.split('+')[-1].split(',')[0].strip() or 'Times New Roman'
+        return 'serif', clean
+    if any(k in low for k in ('courier', 'consolas', 'mono', 'menlo', 'monaco')):
+        clean = fn.split('+')[-1].split(',')[0].strip() or 'Courier New'
+        return 'mono', clean
+    clean = fn.split('+')[-1].split('-')[0].split(',')[0].strip() or 'Helvetica'
+    return 'sans', clean
+
+
+def extract_design_profile(file_bytes: bytes, filename: str) -> dict:
+    """Extracts original typography, colors, page dimensions, and table styling from PDF, DOCX, or HTML."""
+    import base64
+    profile = {
+        'font_family': 'sans',
+        'font_name': 'Helvetica',
+        'primary_color': '#163a5f',
+        'accent_bg': '#e8f1f8',
+        'body_color': '#1e293b',
+        'table_header_bg': '#f1f5f9',
+        'table_header_fg': '#163a5f',
+        'table_border_color': '#cbd5e1',
+        'title_size': 18.0,
+        'heading_size': 12.5,
+        'body_size': 10.0,
+        'page_width': 595.28,
+        'page_height': 841.89,
+    }
+    ext = Path(filename).suffix.lower()
+    try:
+        if ext == '.pdf':
+            mb = re.search(rb'/MediaBox\s*\[\s*([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s+([\d.-]+)\s*\]', file_bytes)
+            if mb:
+                profile['page_width'] = abs(float(mb.group(3)) - float(mb.group(1)))
+                profile['page_height'] = abs(float(mb.group(4)) - float(mb.group(2)))
+            fonts = collections.Counter()
+            for fn in re.findall(rb'/BaseFont\s*/([^\s/<>\[\]()]+)', file_bytes):
+                f_str = fn.decode('latin-1', errors='ignore')
+                if 'ZapfDingbats' not in f_str and 'Symbol' not in f_str:
+                    fonts[f_str] += 1
+            if fonts:
+                profile['font_family'], profile['font_name'] = _classify_font(fonts.most_common(1)[0][0])
+
+            rg_colors = collections.Counter()
+            RG_colors = collections.Counter()
+            sizes = collections.Counter()
+            for s in re.findall(rb'stream[\r\n]+(.*?)endstream', file_bytes, re.S):
+                raw = s.strip()
+                txt = None
+                for dec in (
+                    lambda b: zlib.decompress(b),
+                    lambda b: zlib.decompress(base64.a85decode(b, adobe=b'~>' in b)),
+                    lambda b: base64.a85decode(b, adobe=b'~>' in b),
+                ):
+                    try:
+                        txt = dec(raw).decode('latin-1', errors='ignore')
+                        break
+                    except Exception:
+                        pass
+                if txt is None:
+                    txt = raw.decode('latin-1', errors='ignore')
+                for r, g, b in re.findall(r'([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+rg\b', txt):
+                    hx = '#%02x%02x%02x' % (max(0, min(255, int(round(float(r)*255)))), max(0, min(255, int(round(float(g)*255)))), max(0, min(255, int(round(float(b)*255)))))
+                    rg_colors[hx] += 1
+                for r, g, b in re.findall(r'([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+RG\b', txt):
+                    hx = '#%02x%02x%02x' % (max(0, min(255, int(round(float(r)*255)))), max(0, min(255, int(round(float(g)*255)))), max(0, min(255, int(round(float(b)*255)))))
+                    RG_colors[hx] += 1
+                for sz in re.findall(r'/\S+\s+([\d.]+)\s+Tf\b', txt):
+                    val = float(sz)
+                    if 6.0 <= val <= 48.0:
+                        sizes[round(val, 1)] += 1
+
+            if sizes:
+                body_sz = sizes.most_common(1)[0][0]
+                profile['body_size'] = max(8.5, min(13.0, float(body_sz)))
+                profile['heading_size'] = round(max(profile['body_size'] + 2.0, min(16.0, profile['body_size'] * 1.3)), 1)
+                profile['title_size'] = round(max(profile['heading_size'] + 3.0, min(26.0, max(sizes.keys()))), 1)
+            for hx, _ in rg_colors.most_common(15):
+                if not _is_neutral_dark(hx) and not _is_near_white(hx):
+                    r, g, b = int(hx[1:3], 16), int(hx[3:5], 16), int(hx[5:7], 16)
+                    if min(r, g, b) < 190:
+                        profile['primary_color'] = hx
+                        profile['table_header_fg'] = hx
+                        break
+            for hx, _ in rg_colors.most_common(10):
+                if _is_neutral_dark(hx) and not _is_near_white(hx):
+                    profile['body_color'] = hx
+                    break
+            for hx, _ in rg_colors.most_common(15):
+                if not _is_near_white(hx):
+                    r, g, b = int(hx[1:3], 16), int(hx[3:5], 16), int(hx[5:7], 16)
+                    if min(r, g, b) >= 210:
+                        profile['accent_bg'] = hx
+                        profile['table_header_bg'] = hx
+                        break
+            for hx, _ in RG_colors.most_common(6):
+                if not _is_near_white(hx):
+                    profile['table_border_color'] = hx
+                    break
+        elif ext == '.docx':
+            with zipfile.ZipFile(io.BytesIO(file_bytes)) as z:
+                root = ET.fromstring(z.read('word/document.xml'))
+                font_counts, color_counts, accent_colors, sz_counts, tbl_fills, tbl_borders = (
+                    collections.Counter(), collections.Counter(), collections.Counter(),
+                    collections.Counter(), collections.Counter(), collections.Counter()
+                )
+                for el in root.iter():
+                    tag = el.tag.split('}')[-1]
+                    if tag == 'rFonts':
+                        f = el.attrib.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}ascii') or el.attrib.get('ascii')
+                        if f: font_counts[f] += 1
+                    elif tag == 'color':
+                        v = el.attrib.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val') or el.attrib.get('val')
+                        if v and v.lower() != 'auto' and len(v) == 6:
+                            hx = f"#{v.lower()}"
+                            color_counts[hx] += 1
+                            if not _is_neutral_dark(hx) and not _is_near_white(hx): accent_colors[hx] += 1
+                    elif tag == 'sz':
+                        v = el.attrib.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val') or el.attrib.get('val')
+                        if v and v.isdigit(): sz_counts[int(v) / 2.0] += 1
+                    elif tag == 'shd':
+                        v = el.attrib.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}fill') or el.attrib.get('fill')
+                        if v and v.lower() != 'auto' and len(v) == 6 and not _is_near_white(f"#{v.lower()}"):
+                            tbl_fills[f"#{v.lower()}"] += 1
+                    elif tag in ('top', 'bottom', 'left', 'right', 'insideH', 'insideV'):
+                        v = el.attrib.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}color') or el.attrib.get('color')
+                        if v and v.lower() != 'auto' and len(v) == 6: tbl_borders[f"#{v.lower()}"] += 1
+                if font_counts:
+                    profile['font_family'], profile['font_name'] = _classify_font(font_counts.most_common(1)[0][0])
+                if accent_colors:
+                    profile['primary_color'] = accent_colors.most_common(1)[0][0]
+                    profile['table_header_fg'] = profile['primary_color']
+                for chx, _ in color_counts.most_common(5):
+                    if _is_neutral_dark(chx):
+                        profile['body_color'] = chx
+                        break
+                if sz_counts:
+                    profile['body_size'] = max(8.5, min(13.0, float(sz_counts.most_common(1)[0][0])))
+                    profile['title_size'] = round(max(sz_counts.keys()), 1)
+                    profile['heading_size'] = round(max(profile['body_size'] + 2.0, min(16.0, profile['body_size'] * 1.25)), 1)
+                if tbl_fills:
+                    fhx = tbl_fills.most_common(1)[0][0]
+                    profile['table_header_bg'] = fhx
+                    r, g, b = int(fhx[1:3], 16), int(fhx[3:5], 16), int(fhx[5:7], 16)
+                    if max(r, g, b) < 130: profile['table_header_fg'] = '#ffffff'
+                if tbl_borders:
+                    profile['table_border_color'] = tbl_borders.most_common(1)[0][0]
+    except Exception:
+        pass
+    return profile
+
+

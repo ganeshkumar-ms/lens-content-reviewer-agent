@@ -98,7 +98,11 @@ RAG Status Rules:
 - NEVER repeat the same excerpt, same defect, or same suggested_fix twice.
 
 === COMPLETE FIXED DOCUMENT (`fixed_document_text`) ===
-- Produce `fixed_document_text`: the complete, remediated version of the submitted document where every single change from `issues` has been applied in place.
+Produce `fixed_document_text`: a complete, genuinely publication-ready, end-to-end remediated version of the submitted document that would pass a strict human content review on the first try:
+1. CONSISTENT TONE END-TO-END (ZERO CONTRADICTIONS): Fix tone across the ENTIRE document—Subject line, opening, body, consequences, and closing. Never leave harsh, blaming, accusatory, or self-focused sentences (e.g. "FINAL DEMAND", "final notice", "We will not accept excuses, delays, or partial promises", "Your credibility as a borrower is at stake", "entirely your own doing", "cost us time and resources") alongside supportive phrasing ("we are here to assist you").
+2. CONSTRUCTIVE HELP & CALM CONSEQUENCES: Replace harsh ultimatums and threat lists ("severely damaging your credit score for years", "Do not mistake our patience for weakness") with a calm, transparent explanation of potential consequences (additional charges, credit score impact, or further recovery steps) AND offer real, respectful help options (e.g. discussing repayment arrangements, instalments, or reaching out early to work together).
+3. ZERO UNFILLED PLACEHOLDERS: NEVER invent bracketed placeholders like [portal link], [branch address], [support contact information], [phone number], or [email] that do not exist in the input. Keep natural wording from the source (e.g. "via our payment portal or at your nearest branch", "reply to this email").
+4. ZERO REPETITION & 100% FACTUAL/TABLE FIDELITY: Eliminate duplicated lines or repeated phrases ("resolve this matter" repeated 3x, repeated headings). Preserve every original fact, date, reference number, account number, monetary figure, and table row verbatim, and keep the input's exact structure and format (e.g. letter/email headers, table, closing) without adding "Page 1" / "Page 2" labels.
 
 === ZERO EMOJIS RULE ===
 - NEVER output emojis anywhere in your JSON values.
@@ -418,7 +422,17 @@ def _apply_fixes_to_source(source_text: str, issues: list, ai_fixed_text: str = 
         if exc and fix and len(exc) >= 6 and exc in working:
             working = working.replace(exc, fix, 1)
 
-    return working or ai_fixed or base
+    # Remove accidental consecutive duplicate non-empty lines
+    cleaned_lines = []
+    prev_norm = None
+    for ln in (working or ai_fixed or base).splitlines():
+        norm = re.sub(r'\s+', ' ', ln.strip()).lower()
+        if norm and norm == prev_norm:
+            continue
+        cleaned_lines.append(ln)
+        if norm:
+            prev_norm = norm
+    return '\n'.join(cleaned_lines)
 
 
 def build_fixed_document_html(title: str, fixed_text: str, issues_count: int) -> str:

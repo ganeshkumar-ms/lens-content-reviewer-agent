@@ -596,12 +596,16 @@ function diffWordsLcs(aTokens, bTokens) {
 }
 
 function buildClientFormattedPdfBlob(title, fixedText) {
-  const cleanTitle = String(title || 'Remediated Document').replace(/\*\*/g, '').replace(/^#+\s*/, '').trim()
-  const blocks = [{ kind: 'title', runs: [{ text: cleanTitle, bold: true }] }]
   const strippedText = String(fixedText || '')
     .replace(/\r\n/g, '\n')
     .replace(/\[FULL-DOCUMENT ANALYSIS METADATA\][\s\S]*?(?:Detailed Readable Text[^\n]*\n+|={6,}\s*)/gi, '')
     .trim()
+  const rawLines = strippedText.split('\n').filter(ln => !/^[\-[(\s]*Page\s+\d+(?:\s*(?:of|\/)\s*\d+)?[\-)\]\s]*$/i.test(ln.trim()))
+  const firstNonEmptyIdx = rawLines.findIndex(ln => ln.trim().length > 0)
+  const inferredTitle = firstNonEmptyIdx >= 0 ? rawLines[firstNonEmptyIdx].replace(/\*{1,3}/g, '').replace(/^#+\s*/, '').trim() : ''
+  const cleanTitle = String(title || inferredTitle || '').replace(/\*{1,3}/g, '').replace(/^#+\s*/, '').trim()
+  const blocks = cleanTitle ? [{ kind: 'title', runs: [{ text: cleanTitle, bold: true }] }] : []
+  const lines = (!title && firstNonEmptyIdx >= 0) ? rawLines.slice(firstNonEmptyIdx + 1) : rawLines
 
   const parseInline = (txt) => {
     const parts = String(txt || '').split(/(\*\*[^*]+\*\*)/g)
@@ -618,7 +622,6 @@ function buildClientFormattedPdfBlob(title, fixedText) {
     return runs.length ? runs : [{ text: '', bold: false }]
   }
 
-  const lines = strippedText.split('\n')
   lines.forEach((rawLn, idx) => {
     const st = rawLn.trim()
     if (!st) return
@@ -795,6 +798,10 @@ function renderFormattedFixedContent(fixedText) {
   return lines.map((rawLn, idx) => {
     const st = rawLn.trim()
     if (!st) return <div key={idx} style={{ height: '8px' }} />
+    if (/^[\-[(\s]*Page\s+\d+(?:\s*(?:of|\/)\s*\d+)?[\-)\]\s]*$/i.test(st)) return null
+    if (/^-{3,}$/.test(st)) {
+      return <div key={idx} style={{ borderTop: '1px dashed rgba(148,163,184,0.45)', margin: '14px 0' }} />
+    }
 
     const mHash = st.match(/^(#{1,4})\s+(.+)$/)
     if (mHash) {
@@ -822,8 +829,9 @@ function renderFormattedFixedContent(fixedText) {
 }
 
 function buildHighlightedDiff(originalText, fixedText) {
-  const origLines = String(originalText || '').split(/\r?\n/)
-  const fixLines = String(fixedText || '').split(/\r?\n/)
+  const isPageLabel = (ln) => /^[\-[(\s]*Page\s+\d+(?:\s*(?:of|\/)\s*\d+)?[\-)\]\s]*$/i.test(ln.trim())
+  const origLines = String(originalText || '').split(/\r?\n/).filter(ln => !isPageLabel(ln))
+  const fixLines = String(fixedText || '').split(/\r?\n/).filter(ln => !isPageLabel(ln))
   const m = origLines.length
   const n = fixLines.length
   const dp = Array.from({ length: m + 1 }, () => new Uint16Array(n + 1))
@@ -838,8 +846,10 @@ function buildHighlightedDiff(originalText, fixedText) {
   let i = 0, j = 0, changeCount = 0
   while (i < m && j < n) {
     if (origLines[i].trim() === fixLines[j].trim()) {
+      const isDivider = /^-{3,}$/.test(origLines[i].trim())
       rows.push({
         changed: false,
+        isDivider,
         left: [{ text: origLines[i] || '\u00A0', type: 'eq' }],
         right: [{ text: fixLines[j] || '\u00A0', type: 'eq' }]
       })
@@ -1018,9 +1028,23 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
   const fixedFilename = `${baseStem}_Fixed${origExt}`
 
   async function handleDownloadFixedSameFormat() {
-    // For PDF inputs: export the actual complete remediated/fixed document as a clean formatted PDF
+    // Prefer the server-generated design-matched file (exact input font, colors, page size, tables, no filename banner)
+    if (modDoc.download_url && modDoc.download_url.toLowerCase().includes(origExt)) {
+      const a = document.createElement('a')
+      a.href = absApiUrl(modDoc.download_url)
+      a.download = fixedFilename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      return
+    }
+
+    // Fallback client-side PDF export only when server download_url is unavailable
     if (origExt === '.pdf') {
-      const pdfBlob = buildClientFormattedPdfBlob(`${baseStem} (Fixed & Verified)`, fixedText)
+      const cleanTxt = String(fixedText || '')
+        .replace(/^[\-[(\s]*Page\s+\d+(?:\s*(?:of|\/)\s*\d+)?[\-)\]\s]*$/gim, '')
+        .replace(/\*{1,3}/g, '')
+      const pdfBlob = buildClientFormattedPdfBlob('', cleanTxt)
       const url = URL.createObjectURL(pdfBlob)
       const a = document.createElement('a')
       a.href = url
@@ -1029,16 +1053,6 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      return
-    }
-
-    if (modDoc.download_url && modDoc.download_url.toLowerCase().includes(origExt)) {
-      const a = document.createElement('a')
-      a.href = absApiUrl(modDoc.download_url)
-      a.download = fixedFilename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
       return
     }
 
@@ -1417,13 +1431,17 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
                       onScroll={() => handleSyncScroll('left')}
                     >
                       {diffResult.rows.map((row, idx) => (
-                        <div key={idx} className={`lensDiffLine${row.changed ? ' changed del' : ''}`}>
-                          {row.left.map((tok, ti) => (
-                            tok.type === 'del'
-                              ? <mark key={ti} className="lensDiffDel">{tok.text}</mark>
-                              : <span key={ti} className={tok.type === 'empty' ? 'lensDiffEmpty' : ''}>{tok.text}</span>
-                          ))}
-                        </div>
+                        row.isDivider ? (
+                          <div key={idx} style={{ borderTop: '1px dashed rgba(148,163,184,0.45)', margin: '12px 0' }} />
+                        ) : (
+                          <div key={idx} className={`lensDiffLine${row.changed ? ' changed del' : ''}`}>
+                            {row.left.map((tok, ti) => (
+                              tok.type === 'del'
+                                ? <mark key={ti} className="lensDiffDel">{tok.text}</mark>
+                                : <span key={ti} className={tok.type === 'empty' ? 'lensDiffEmpty' : ''}>{tok.text}</span>
+                            ))}
+                          </div>
+                        )
                       ))}
                     </div>
                   </div>
@@ -1437,13 +1455,17 @@ export default function LensResultCard({ data, docMeta, guardrails: propGuardrai
                       onScroll={() => handleSyncScroll('right')}
                     >
                       {diffResult.rows.map((row, idx) => (
-                        <div key={idx} className={`lensDiffLine${row.changed ? ' changed add' : ''}`}>
-                          {row.right.map((tok, ti) => (
-                            tok.type === 'add'
-                              ? <mark key={ti} className="lensDiffAdd">{tok.text}</mark>
-                              : <span key={ti} className={tok.type === 'empty' ? 'lensDiffEmpty' : ''}>{tok.text}</span>
-                          ))}
-                        </div>
+                        row.isDivider ? (
+                          <div key={idx} style={{ borderTop: '1px dashed rgba(148,163,184,0.45)', margin: '12px 0' }} />
+                        ) : (
+                          <div key={idx} className={`lensDiffLine${row.changed ? ' changed add' : ''}`}>
+                            {row.right.map((tok, ti) => (
+                              tok.type === 'add'
+                                ? <mark key={ti} className="lensDiffAdd">{tok.text}</mark>
+                                : <span key={ti} className={tok.type === 'empty' ? 'lensDiffEmpty' : ''}>{tok.text}</span>
+                            ))}
+                          </div>
+                        )
                       ))}
                     </div>
                   </div>

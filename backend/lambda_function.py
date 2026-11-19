@@ -299,15 +299,16 @@ def lambda_handler(event, context):
                     pass
 
                 # Build the exact matching format for download (PDF, DOCX, HTML, or TXT)
+                design_profile = (doc_meta or {}).get('design_profile') if isinstance(doc_meta, dict) else None
                 if orig_ext == '.pdf':
                     out_filename = f"{orig_stem}_Fixed.pdf"
                     stored_dl = f"fixed_{fixed_id}_{orig_stem}.pdf"
-                    out_bytes = lens_export_service.build_formatted_pdf_bytes(f"{orig_stem} (Fixed & Verified)", fixed_txt)
+                    out_bytes = lens_export_service.build_formatted_pdf_bytes('', fixed_txt, design=design_profile)
                     out_ctype = 'application/pdf'
                 elif orig_ext in ('.docx', '.doc'):
                     out_filename = f"{orig_stem}_Fixed.docx"
                     stored_dl = f"fixed_{fixed_id}_{orig_stem}.docx"
-                    out_bytes = lens_export_service.build_formatted_docx_bytes(f"{orig_stem} (Fixed & Verified)", fixed_txt)
+                    out_bytes = lens_export_service.build_formatted_docx_bytes('', fixed_txt, design=design_profile)
                     out_ctype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 elif orig_ext in ('.html', '.htm'):
                     out_filename = f"{orig_stem}_Fixed.html"
