@@ -18,13 +18,15 @@ except ImportError:
 
 
 def get_bedrock_client():
+    from botocore.config import Config
     return boto3.client(
         'bedrock-runtime',
         region_name=os.getenv('AWS_DEFAULT_REGION') or os.getenv('AWS_REGION') or 'us-east-1',
+        config=Config(read_timeout=18, connect_timeout=5, retries={'max_attempts': 1}),
     )
 
 
-MODEL_ID = 'us.amazon.nova-pro-v1:0'
+MODEL_ID = 'us.amazon.nova-lite-v1:0'
 FALLBACK_MODEL_ID = 'us.anthropic.claude-3-haiku-20240307-v1:0'
 
 ENTERPRISE_10_DIMENSIONS = [

@@ -282,10 +282,10 @@ def lambda_handler(event, context):
         if isinstance(mod_doc, dict) and (mod_doc.get('fixed_text') or mod_doc.get('fixed_html')):
             try:
                 fixed_id = uuid.uuid4().hex[:8]
-                orig_ext = Path(doc_filename).suffix.lower() if doc_filename else '.txt'
+                orig_ext = Path(file_name).suffix.lower() if file_name else '.txt'
                 if not orig_ext:
                     orig_ext = '.txt'
-                orig_stem = _sanitize_filename(Path(doc_filename).stem if doc_filename else 'Fixed_Document')
+                orig_stem = _sanitize_filename(Path(file_name).stem if file_name else 'Fixed_Document')
                 fixed_txt = mod_doc.get('fixed_text') or ''
                 fixed_html = mod_doc.get('fixed_html') or ''
 
