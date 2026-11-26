@@ -235,9 +235,16 @@ export default function App() {
   }
 
   function handleDeleteSession(id) {
-    setSessions(prev => prev.filter(s => s.id !== id))
+    const idx = sessions.findIndex(s => s.id === id)
+    const remaining = sessions.filter(s => s.id !== id)
+    setSessions(remaining)
     if (currentSessionId === id) {
-      handleNewChat()
+      if (remaining.length > 0) {
+        const nextSess = remaining[idx >= 0 && idx < remaining.length ? idx : remaining.length - 1]
+        handleLoadSession(nextSess)
+      } else {
+        handleNewChat()
+      }
     }
   }
 
@@ -636,9 +643,18 @@ export default function App() {
 
               {/* Messages Container */}
               <div className="messages">
-                {messages.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'var(--muted)', marginTop: 40, fontSize: 14 }}>
-                    Send a message or attach a document to start your audit with LENS.
+                {messages.length === 0 && !loading && (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#849bb4', maxWidth: '520px', margin: '0 auto', padding: '24px' }}>
+                    <div style={{ display: 'inline-flex', padding: '13px', borderRadius: '14px', background: 'rgba(7, 140, 255, 0.1)', border: '1px solid rgba(7, 140, 255, 0.25)', color: '#38bdf8', marginBottom: '14px' }}>
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        <path d="m9 12 2 2 4-4" />
+                      </svg>
+                    </div>
+                    <b style={{ display: 'block', color: '#fff', fontSize: '18px' }}>Start a new 10-dimension audit with LENS</b>
+                    <p style={{ fontSize: '14.5px', lineHeight: '1.65', marginTop: '10px', marginBottom: 0 }}>
+                      Upload a draft policy, notice, or communication — or paste your text below — to score all 10 RAG governance dimensions, pinpoint exact clause fixes, and generate a ready-to-publish document.
+                    </p>
                   </div>
                 )}
 
