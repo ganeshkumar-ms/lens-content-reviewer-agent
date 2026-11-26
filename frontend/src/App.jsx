@@ -169,6 +169,12 @@ export default function App() {
 
   // Persist sessions to localStorage (NEVER save empty conversations)
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.self !== window.top) {
+      document.documentElement.classList.add('in-iframe')
+    }
+  }, [])
+
+  useEffect(() => {
     const valid = sessions.filter(s => s.messages && s.messages.length > 0)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(valid))
   }, [sessions])
